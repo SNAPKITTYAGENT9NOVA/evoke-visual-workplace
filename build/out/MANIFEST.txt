@@ -1,0 +1,49 @@
+Visual Workplace — evoke build manifest
+generated_by: ./evoke
+offline: true
+network: none
+stacks: colorforth,dylan,beam
+
+=== artifacts ===
+./MANIFEST.txt
+./beam/.formatter.exs
+./beam/config/config.exs
+./beam/lib/evoke/agent_node.ex
+./beam/lib/evoke/agent_supervisor.ex
+./beam/lib/evoke/application.ex
+./beam/lib/evoke/backpressure.ex
+./beam/lib/evoke/dylan_protocol.ex
+./beam/lib/evoke/telemetry.ex
+./beam/lib/evoke/transport/websocket.ex
+./beam/lib/evoke/workplace_bridge.ex
+./beam/mix.exs
+./beam/test/evoke/backpressure_test.exs
+./beam/test/evoke/dylan_protocol_test.exs
+./beam/test/evoke/fanout_test.exs
+./beam/test/evoke/timing_test.exs
+./beam/test/evoke/workplace_bridge_test.exs
+./beam/test/test_helper.exs
+./bridge-map.json
+./colorforth/00-boot.cf
+./colorforth/01-desktop.cf
+./colorforth/02-workbench.cf
+./colorforth/03-termux.cf
+./colorforth/04-agent.cf
+./colorforth/05-screen-termux-agent.cf
+./colorforth/WORKPLACE.CF
+./colorforth/agent.cf
+./colorforth/blocks.cf
+./colorforth/desktop.cf
+./colorforth/screen-termux-agent.cf
+./colorforth/termux.cf
+./colorforth/workbench.cf
+./colorforth/workplace.cf
+./dylan/app.dylan
+./dylan/events.dylan
+./dylan/evoke-bridge.dylan
+./dylan/evoke-build.dylan
+./dylan/library.dylan
+./dylan/module.dylan
+./dylan/ui.dylan
+./dylan/visual-workplace.lid
+./workplace-standalone.html

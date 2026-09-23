@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark light" />
+  <title>Visual Workplace · ColorForth + Dylan + BEAM (offline evoke)</title>
+  <style>
+    :root {
+      --ink:#eef1f6; --muted:#a8afba; --faint:#7f8792;
+      --glass:rgba(29,32,39,.88); --glass-solid:#24272e; --panel:#1d2026;
+      --panel-2:#292d35; --panel-3:#343944; --line:rgba(255,255,255,.12);
+      --blue:#4da3ff; --green:#55c46d; --orange:#f6b84a; --red:#ff6961;
+      --code:#171a1f; --wall-1:#142c3b; --wall-2:#263f5e; --wall-3:#623d48; --wall-4:#1b4b62;
+      --shadow:0 30px 90px rgba(0,0,0,.58);
+      --cf-red:#ff3030; --cf-green:#30ff30; --cf-yellow:#ffff30; --cf-cyan:#30ffff; --cf-mag:#ff40ff;
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    [hidden]{display:none!important}
+    html,body{height:100%;margin:0;overflow:hidden}
+    body{font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;color:var(--ink);background:var(--wall-2)}
+    button,input{font:inherit;color:inherit}
+    button{cursor:pointer}
+    code,pre,.mono{font-family:"SFMono-Regular",Consolas,monospace}
+
+    .app{height:100dvh;display:grid;grid-template-rows:30px 1fr 28px;background:
+      radial-gradient(ellipse 70% 58% at 79% 20%,color-mix(in srgb,var(--wall-3) 92%,transparent),transparent 66%),
+      radial-gradient(ellipse 72% 72% at 10% 92%,color-mix(in srgb,var(--wall-4) 88%,transparent),transparent 68%),
+      linear-gradient(138deg,var(--wall-1),var(--wall-2) 48%,var(--wall-3))}
+
+    .menubar{display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:rgba(245,248,251,.12);backdrop-filter:blur(24px);border-bottom:1px solid rgba(255,255,255,.12);font-size:12px;font-weight:550;user-select:none}
+    .menu-left{display:flex;gap:16px;align-items:center}.menu-left .appname{font-weight:730}
+    .menu-right{display:flex;gap:12px;align-items:center;color:var(--muted)}
+    .lang-pill{padding:2px 8px;border-radius:999px;border:1px solid var(--line);font-size:10px;font-weight:700;letter-spacing:.04em}
+    .lang-pill.cf{color:var(--cf-yellow);border-color:#554}.lang-pill.dy{color:#b8a0ff;border-color:#435}
+
+    .main{min-height:0;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,0.85fr);gap:0}
+    .workplace{min-height:0;display:flex;flex-direction:column;padding:14px 14px 10px;position:relative}
+    .window{flex:1;min-height:0;border:1px solid rgba(255,255,255,.28);border-radius:var(--radius);background:var(--glass);backdrop-filter:blur(28px);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+    .titlebar{height:40px;display:grid;grid-template-columns:120px 1fr 160px;align-items:center;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--glass-solid) 80%,transparent)}
+    .traffic{display:flex;gap:8px;padding-left:14px}
+    .traffic i{width:12px;height:12px;border-radius:50%;display:block}
+    .traffic .r{background:#ff5f57}.traffic .y{background:#febc2e}.traffic .g{background:#28c840}
+    .window-title{text-align:center;font-size:12px;font-weight:660}
+    .window-meta{justify-self:end;padding-right:12px;font-size:10px;color:var(--muted);display:flex;gap:8px;align-items:center}
+    #bridgeBadge{padding:2px 7px;border-radius:6px;background:var(--panel-3);font-family:monospace;font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #bridgeBadge[data-lang="cf"]{color:var(--cf-yellow)}
+    #bridgeBadge[data-lang="dylan"]{color:#c4b0ff}
+
+    .termux-split{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(220px,0.9fr)}
+    .termux-pane{display:flex;flex-direction:column;min-height:0;background:#0a0c0f;color:#c8f0d0;border-right:1px solid #1e2a22;position:relative;transition:box-shadow .35s,border-color .35s}
+    .termux-chrome,.agent-chrome{height:34px;display:flex;align-items:center;gap:10px;padding:0 12px;font-size:11px;flex:none;user-select:none}
+    .termux-chrome{background:linear-gradient(#1a2220,#121816);border-bottom:1px solid #24302a;color:#8fd9a8}
+    .termux-led{width:8px;height:8px;border-radius:50%;background:#3a4a40;box-shadow:inset 0 0 0 1px #1a221c;transition:background .25s,box-shadow .25s}
+    .termux-pane.c-live .termux-led,.termux-pane.compile-live .termux-led{background:#39ff88;box-shadow:0 0 8px #39ff88,0 0 18px rgba(57,255,136,.55);animation:ledPulse 1.1s ease-in-out infinite}
+    .termux-title{font-weight:700;color:#b8f5c8}
+    .termux-session{margin-left:auto;color:#6a9a78;font-family:monospace;font-size:10.5px}
+    .termux-body{flex:1;min-height:0;overflow:auto;padding:12px 14px 8px;font:12.5px/1.65 monospace}
+    .termux-line{white-space:pre-wrap;word-break:break-word}
+    .termux-sys{color:#6ec8ff}.termux-ok{color:#70d890}.termux-err{color:#ff8a7a}.termux-muted{color:#6a7a70}
+    .termux-prompt-row{display:flex;align-items:center;gap:6px;padding:8px 14px 12px;border-top:1px solid #1e2a22;background:#080a0c}
+    .termux-prompt{color:#70d890;flex:none}
+    .termux-input{flex:1;min-width:0;border:0;background:transparent;color:#e8ffe8;outline:none;font:inherit;caret-color:#39ff88}
+    .termux-pane.c-live{border-color:#39ff88;box-shadow:inset 0 0 0 1px rgba(57,255,136,.55),0 0 28px rgba(57,255,136,.35),0 0 60px rgba(0,220,255,.18)}
+    .termux-pane.compile-live{border-color:#00e5ff;box-shadow:inset 0 0 0 1px rgba(0,229,255,.65),0 0 36px rgba(57,255,136,.5),0 0 80px rgba(0,229,255,.28)}
+    .termux-pane.c-live::after,.termux-pane.compile-live::after{content:"";pointer-events:none;position:absolute;inset:34px 0 0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(57,255,136,.03) 2px,rgba(57,255,136,.03) 4px);opacity:.7;animation:scanDrift 4s linear infinite}
+    @keyframes ledPulse{0%,100%{opacity:1}50%{opacity:.55}}
+    @keyframes scanDrift{from{background-position:0 0}to{background-position:0 40px}}
+
+    .agent-pane{display:flex;flex-direction:column;min-height:0;background:#101418;color:#d5dde6}
+    .agent-chrome{background:linear-gradient(#1c242c,#141a20);border-bottom:1px solid #243040}
+    .agent-badge{width:18px;height:18px;border-radius:5px;background:linear-gradient(145deg,#4da3ff,#7c5cff);display:grid;place-items:center;font-size:9px;font-weight:800;color:#fff}
+    .agent-chrome strong{font-size:11px}.agent-chrome .right{margin-left:auto;color:#7a8a9a;font-size:10px}
+    .agent-log{flex:1;min-height:0;overflow:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:11.5px;line-height:1.45}
+    .agent-msg{padding:8px 10px;border-radius:8px;background:#182028;border:1px solid #243040}
+    .agent-msg.sys{border-color:#1e4a3a;background:#121e1a;color:#9fe8b8;font-family:monospace;font-size:11px}
+    .agent-msg.bot{border-color:#2a3a55;background:#151c28}
+    .agent-msg.user{align-self:flex-end;background:#1a2a40;border-color:#2f4f7a;color:#cfe0ff}
+    .agent-msg .who{display:block;font-size:9.5px;font-weight:700;color:#7a9ab8;margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em}
+    .agent-msg.sys .who{color:#5ecf8a}
+    .agent-msg .attrib{display:block;margin-top:5px;font-size:9px;color:#6a7a8a;font-family:monospace}
+    .agent-msg .attrib .cf{color:var(--cf-yellow)}.agent-msg .attrib .dy{color:#b8a0ff}
+    .agent-input-row{display:flex;gap:6px;padding:8px;border-top:1px solid #243040;background:#12181e}
+    .agent-input{flex:1;height:32px;border:1px solid #2a3848;border-radius:7px;background:#0e141a;color:#e8eef5;padding:0 10px}
+    .agent-send{height:32px;border:0;border-radius:7px;padding:0 12px;background:var(--blue);color:#fff;font-weight:650}
+
+    .side{min-height:0;display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,.1);background:rgba(12,16,22,.72);backdrop-filter:blur(18px)}
+    .side-tabs{display:flex;gap:4px;padding:8px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+    .side-tabs button{border:1px solid var(--line);background:var(--panel-2);border-radius:7px;padding:5px 10px;font-size:11px;font-weight:600}
+    .side-tabs button.active{background:var(--panel-3);color:#fff;border-color:#556}
+    .side-tabs button[data-tab="cf"].active{color:var(--cf-yellow)}
+    .side-tabs button[data-tab="dylan"].active{color:#c4b0ff}
+    .side-body{flex:1;min-height:0;overflow:auto;position:relative}
+    .panel{display:none;height:100%;flex-direction:column}
+    .panel.active{display:flex}
+    .cf-toolbar,.dy-toolbar{display:flex;gap:6px;padding:8px;border-bottom:1px solid #222;flex-wrap:wrap;background:#0a0a0a}
+    .cf-toolbar button,.dy-toolbar button{font-size:10px;padding:4px 8px;border-radius:5px;border:1px solid #333;background:#1a1a1a}
+    .cf-toolbar button.active{color:var(--cf-yellow);border-color:#555}
+    .dy-toolbar button.active{color:#c4b0ff;border-color:#554}
+    .cf-legend{display:flex;flex-wrap:wrap;gap:10px;padding:6px 10px;font-size:10px;color:#aaa;background:#050505;border-bottom:1px solid #1a1a1a}
+    .cf-legend i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px}
+    #cfSource,#dySource{margin:0;padding:14px 16px 40px;background:#000;color:#f0f0f0;font:12.5px/1.55 monospace;white-space:pre-wrap;flex:1;overflow:auto}
+    #cfSource .red{color:var(--cf-red);font-weight:700}
+    #cfSource .green{color:var(--cf-green)}
+    #cfSource .yellow{color:var(--cf-yellow);font-weight:600}
+    #cfSource .cyan{color:var(--cf-cyan);font-style:italic}
+    #cfSource .white{color:#f0f0f0}
+    #cfSource .magenta{color:var(--cf-mag)}
+    #dySource{background:#12141a;color:#d8dde8}
+    #dySource .kw{color:#c792ea} #dySource .cls{color:#82aaff} #dySource .fn{color:#c3e88d}
+    #dySource .cm{color:#637777;font-style:italic} #dySource .str{color:#c3e88d}
+
+    .bridge-panel{padding:8px;display:flex;flex-direction:column;gap:8px;height:100%}
+    #bridgeLog{flex:1;overflow:auto;background:#0e1218;border:1px solid var(--line);border-radius:8px;padding:8px;font:11px/1.45 monospace}
+    .bridge-row{padding:4px 0;border-bottom:1px solid #1a222c;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+    .bridge-tag{font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;min-width:72px}
+    .bridge-row.cf .bridge-tag{color:var(--cf-yellow)}
+    .bridge-row.dylan .bridge-tag{color:#b8a0ff}
+    .bridge-row code{color:#e8eef5}.bridge-note{color:#7a8797}
+    .quick{display:flex;flex-wrap:wrap;gap:6px}
+    .quick button{font-size:11px;padding:6px 10px;border-radius:7px;border:1px solid var(--line);background:var(--panel-2)}
+    .quick button.primary{background:var(--blue);border-color:transparent;color:#fff;font-weight:650}
+
+    .statusbar{display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:rgba(0,0,0,.35);border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+    .dock-hint{display:flex;gap:8px;align-items:center}
+    .dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+
+    .toast{position:fixed;left:50%;bottom:48px;transform:translate(-50%,12px);padding:10px 14px;border-radius:9px;background:#222831;color:#fff;opacity:0;pointer-events:none;transition:.18s;z-index:70;font-size:12px}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+
+    @media(max-width:980px){
+      .main{grid-template-columns:1fr}
+      .side{border-left:0;border-top:1px solid rgba(255,255,255,.1);max-height:42vh}
+      .termux-split{grid-template-columns:1fr;grid-template-rows:1fr 180px}
+      .termux-pane{border-right:0;border-bottom:1px solid #1e2a22}
+    }
+    @media(prefers-reduced-motion:reduce){
+      .termux-pane.c-live::after,.termux-pane.compile-live::after,.termux-pane.c-live .termux-led,.termux-pane.compile-live .termux-led{animation:none}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="menubar">
+    <div class="menu-left">
+      <span class="appname">Workbench</span>
+      <span>File</span><span>Edit</span><span>View</span><span>Build</span><span>Window</span><span>Help</span>
+    </div>
+    <div class="menu-right">
+      <span class="lang-pill cf">ColorForth</span>
+      <span class="lang-pill dy">Dylan</span>
+      <span id="clock"></span>
+    </div>
+  </header>
+
+  <div class="main">
+    <section class="workplace" aria-label="Workplace">
+      <div class="window" role="dialog" aria-label="Termux Syscall Agent">
+        <div class="titlebar">
+          <div class="traffic" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+          <div class="window-title">Termux · Syscall Agent</div>
+          <div class="window-meta"><span id="bridgeBadge" title="Last language call">idle</span><span>CF + Dylan</span></div>
+        </div>
+        <div class="termux-split">
+          <div class="termux-pane" id="termuxPane">
+            <div class="termux-chrome">
+              <span class="termux-led" title="session"></span>
+              <span class="termux-title">Termux</span>
+              <span id="termuxLedLabel" class="termux-muted" style="font-size:10px;color:#6a9a78">idle</span>
+              <span class="termux-session">$ ~/workspace</span>
+            </div>
+            <div class="termux-body" id="termuxOut" aria-live="polite"></div>
+            <div class="termux-prompt-row">
+              <span class="termux-prompt">~/workspace $</span>
+              <input class="termux-input" id="termuxInput" spellcheck="false" autocomplete="off" aria-label="Termux command" placeholder="gcc hello.c" />
+            </div>
+          </div>
+          <aside class="agent-pane" aria-label="Syscall agent">
+            <div class="agent-chrome">
+              <span class="agent-badge">G</span>
+              <strong>Grok Bot · syscall agent</strong>
+              <span class="right">kernel path</span>
+            </div>
+            <div class="agent-log" id="agentLog"></div>
+            <div class="agent-input-row">
+              <input class="agent-input" id="agentInput" placeholder="Ask about write(), gcc, mmap…" aria-label="Ask agent" />
+              <button type="button" class="agent-send" id="agentSend">Send</button>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side" aria-label="Language sources">
+      <div class="side-tabs" role="tablist">
+        <button type="button" class="active" data-tab="cf" role="tab">ColorForth</button>
+        <button type="button" data-tab="dylan" role="tab">Dylan</button>
+        <button type="button" data-tab="bridge" role="tab">Bridge trace</button>
+      </div>
+      <div class="side-body">
+        <div class="panel active" id="panel-cf" role="tabpanel">
+          <div class="cf-legend">
+            <span><i style="background:#ff3030"></i>define</span>
+            <span><i style="background:#30ff30"></i>compile</span>
+            <span><i style="background:#ffff30"></i>execute</span>
+            <span><i style="background:#30ffff"></i>comment</span>
+            <span><i style="background:#f0f0f0"></i>literal</span>
+            <span><i style="background:#ff40ff"></i>macro</span>
+          </div>
+          <div class="cf-toolbar" id="cfTabs"></div>
+          <pre id="cfSource" class="cf-source"></pre>
+        </div>
+        <div class="panel" id="panel-dylan" role="tabpanel">
+          <div class="dy-toolbar" id="dyTabs"></div>
+          <pre id="dySource"></pre>
+        </div>
+        <div class="panel" id="panel-bridge" role="tabpanel">
+          <div class="bridge-panel">
+            <div class="quick">
+              <button type="button" class="primary" id="btnDemo">Run demo / mount</button>
+              <button type="button" id="btnOpenC">open-file hello.c</button>
+              <button type="button" id="btnGcc">gcc hello.c</button>
+              <button type="button" id="btnGlow">c-live</button>
+            </div>
+            <div id="bridgeLog" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="statusbar">
+    <div class="dock-hint"><span class="dot"></span> Preview · simulated ColorForth words + Dylan methods</div>
+    <div>Sources: ../colorforth · ../dylan · open README.md</div>
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* inlined bridge.js — offline, no fetch */
+/* Preview bridge: JS calls simulated ColorForth words + Dylan methods.
+   Labels/logs show both language attributions when actions fire. */
+
+window.CF = {
+  stack: [],
+  lastWord: null,
+  trace: [],
+  call(word, note) {
+    this.lastWord = word;
+    this.trace.push({ lang: 'colorforth', name: word, note: note || '' });
+    logBridge('cf', word, note);
+    return word;
+  }
+};
+
+window.Dylan = {
+  lastMethod: null,
+  trace: [],
+  call(method, note) {
+    this.lastMethod = method;
+    this.trace.push({ lang: 'dylan', name: method, note: note || '' });
+    logBridge('dylan', method, note);
+    return method;
+  }
+};
+
+function logBridge(lang, name, note) {
+  const el = document.getElementById('bridgeLog');
+  if (!el) return;
+  const row = document.createElement('div');
+  row.className = 'bridge-row ' + lang;
+  const tag = lang === 'cf' ? 'ColorForth' : 'Dylan';
+  row.innerHTML = `<span class="bridge-tag">${tag}</span><code>${escapeHtml(name)}</code>` +
+    (note ? `<span class="bridge-note">${escapeHtml(note)}</span>` : '');
+  el.appendChild(row);
+  el.scrollTop = el.scrollHeight;
+  const badge = document.getElementById('bridgeBadge');
+  if (badge) {
+    badge.textContent = lang === 'cf' ? `cf · ${name}` : `dylan · ${name}`;
+    badge.dataset.lang = lang;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[c]);
+}
+
+window.WorkplaceBridge = {
+  openFile(path) {
+    CF.call('open-file', path);
+    Dylan.call('open-file!', path);
+    CF.call('c-check', path);
+    if (/\.c$/i.test(path) || /hello\.c/i.test(path)) {
+      this.glowOn(false);
+    }
+  },
+  glowOn(compileBoost) {
+    CF.call(compileBoost ? 'compile-live' : 'c-live');
+    Dylan.call('set-glow!', compileBoost ? 'on + compile-boost?' : 'on');
+    setCGlow(true, !!compileBoost);
+  },
+  glowOff() {
+    CF.call('glow-off');
+    Dylan.call('set-glow!', 'off');
+    setCGlow(false, false);
+  },
+  keyEnter(line) {
+    CF.call('key-enter', line);
+    Dylan.call('handle-key-enter!', line);
+  },
+  keyType(fragment) {
+    CF.call('key-type');
+    if (looksLikeC(fragment)) {
+      CF.call('looks-like-c?');
+      this.glowOn(false);
+    }
+  },
+  handleCmd(line) {
+    CF.call('handle-cmd', line);
+    const cmd = line.trim().split(/\s+/)[0] || '';
+    if (cmd === 'gcc' || cmd === 'clang') {
+      CF.call('do-gcc', line);
+      Dylan.call('compile-c!', line);
+    } else if (cmd === 'help') {
+      CF.call('do-help');
+    } else if (cmd === 'ls') {
+      CF.call('do-ls');
+    } else if (cmd === 'cat') {
+      CF.call('do-cat');
+    } else if (cmd === './a.out' || cmd === 'a.out') {
+      CF.call('do-run');
+    }
+  },
+  agentAsk(q) {
+    CF.call('agent-ask', q);
+    Dylan.call('agent-ask!', q);
+  },
+  agentSyscall(msg) {
+    CF.call('agent-syscall', msg);
+    Dylan.call('on-dylan-event', 'syscall-trace');
+  },
+  agentSay(msg) {
+    CF.call('agent-say');
+  },
+  mountDemo() {
+    CF.call('demo');
+    CF.call('screen-termux-agent');
+    CF.call('mount-termux');
+    Dylan.call('mount-termux-agent-screen!');
+    Dylan.call('boot-workplace');
+  },
+  encodeFrame(op, body) {
+    Dylan.call('encode-frame', `${op} ${body || ''}`);
+    CF.call('sys-frame', op);
+  }
+};
+
+</script>
+<script>
+/* ---- embedded sources (no network required) ---- */
+const CF_SOURCES = {
+"termux.cf": `cyan termux pane chrome · led · body · prompt
+red termux-pane
+  green termux-chrome
+  green termux-led
+  green termux-body
+  green termux-prompt
+  green termux-input
+  magenta ;
+cyan key event words
+red key-enter
+  green input@
+  green handle-cmd
+  green input-clear
+  magenta ;
+red key-type
+  green input@
+  green looks-like-c?
+  green if
+    green c-live
+  green then
+  magenta ;
+red handle-cmd
+  green parse-cmd
+  green case
+    green help green do-help
+    green ls green do-ls
+    green cat green do-cat
+    green gcc green do-gcc
+    green clang green do-gcc
+    green ./a.out green do-run
+  green endcase
+  magenta ;
+red c-live
+  white 1
+  green glow!
+  green led-on
+  green agent-c-context
+  magenta ;
+red compile-live
+  white 1
+  green glow!
+  green led-boost
+  green agent-compile-ok
+  magenta ;
+red do-gcc
+  green c-live
+  green sys-clone
+  green sys-execve
+  green sys-openat
+  green sys-read
+  green sys-as
+  green sys-ld
+  green compile-live
+  magenta ;
+red looks-like-c?
+  green s" white #include green search
+  green s" white int main green search
+  green or
+  green s" white printf green search
+  green or
+  magenta ;
+yellow termux-pane`,
+"screen-termux-agent.cf": `cyan screen layout: left termux · right agent
+red screen-termux-agent
+  green sheet-termux
+  green termux-split
+  green termux-pane
+  green agent-pane
+  green mount-termux
+  magenta ;
+red mount-termux
+  green key-enter-bind
+  green key-type-bind
+  green agent-send-bind
+  green banner-help
+  green agent-online
+  magenta ;
+red demo
+  green s" white Termux · Syscall Agent green open-panel
+  green screen-termux-agent
+  magenta ;
+yellow demo`,
+"agent.cf": `cyan agent pane · badge · log · ask
+red agent-pane
+  green agent-chrome
+  green agent-badge
+  green agent-log
+  green agent-ask
+  magenta ;
+red agent-syscall
+  green log-sys
+  green scroll-log
+  magenta ;
+red agent-say
+  green log-bot
+  green scroll-log
+  magenta ;
+red agent-ask
+  green log-user
+  green reply-pick
+  green agent-say
+  magenta ;
+red agent-c-context
+  green s" white C context active green agent-syscall
+  magenta ;
+red agent-compile-ok
+  green s" white Compile path clean. Run ./a.out green agent-say
+  magenta ;
+yellow agent-pane`,
+"desktop.cf": `cyan desktop shell · menubar · dock
+red shell
+  green wallpaper
+  green menubar
+  green dock
+  green stage
+  magenta ;
+red menubar
+  green apple-btn
+  green appname
+  green menu-file
+  green menu-edit
+  green menu-view
+  green menu-build
+  green menu-window
+  green menu-help
+  green status-wifi
+  green battery
+  green clock
+  magenta ;
+red dock
+  green dock-finder
+  green dock-workbench
+  green dock-termux
+  green dock-docs
+  green dock-settings
+  magenta ;
+yellow shell
+yellow menubar
+yellow dock`,
+"workbench.cf": `cyan workbench chrome · traffic lights · title
+red workbench-window
+  green titlebar
+  green traffic-r
+  green traffic-y
+  green traffic-g
+  green window-title
+  green toolbar
+  green workspace
+  magenta ;
+red workspace
+  green navigator
+  green editor
+  green inspector
+  magenta ;
+red navigator
+  green nav-search
+  green tree-group
+  green file-row
+  green open-file
+  magenta ;
+red editor
+  green tabs
+  green breadcrumb
+  green code-buffer
+  green console
+  magenta ;
+red open-file
+  green path-type
+  green editor-load
+  green c-check
+  green c-live?
+  magenta ;
+yellow workbench-window`,
+"workplace.cf": `cyan include vocabulary blocks
+yellow include white desktop.cf
+yellow include white workbench.cf
+yellow include white termux.cf
+yellow include white agent.cf
+yellow include white screen-termux-agent.cf
+red workplace
+  green shell
+  green menubar
+  green dock
+  green workbench-window
+  green demo
+  magenta ;
+yellow workplace`
+};
+
+const DY_SOURCES = {
+"ui.dylan": `define class <c-glow-state> (<object>)
+  slot glow-active? :: <boolean> = #f;
+  slot glow-compile-boost? :: <boolean> = #f;
+end class <c-glow-state>;
+
+define class <termux-pane> (<object>)
+  slot termux-cwd :: <byte-string>
+    = "/data/data/com.termux/files/home/workspace";
+  constant slot termux-glow :: <c-glow-state> = make(<c-glow-state>);
+  slot termux-aout? :: <boolean> = #f;
+end class <termux-pane>;
+
+define class <syscall-agent> (<object>)
+  slot agent-log :: <stretchy-vector> = make(<stretchy-vector>);
+  constant slot agent-name :: <byte-string> = "Grok Bot · syscall agent";
+end class <syscall-agent>;
+
+define class <workbench-window> (<object>)
+  slot workbench-termux :: false-or(<termux-pane>) = #f;
+  slot workbench-agent :: false-or(<syscall-agent>) = #f;
+end class <workbench-window>;
+
+define class <visual-workplace> (<object>)
+  constant slot workplace-menubar :: <menubar> = make(<menubar>);
+  constant slot workplace-dock :: <dock> = make(<dock>);
+  constant slot workplace-workbench :: <workbench-window>
+    = make(<workbench-window>);
+end class <visual-workplace>;
+
+define method compile-c!
+    (termux :: <termux-pane>, agent :: <syscall-agent>,
+     source :: <byte-string>) => ()
+  set-glow!(termux.termux-glow, #t);
+  // … syscall posts …
+  set-glow!(termux.termux-glow, #t, compile-boost?: #t);
+end method compile-c!;
+
+define method handle-key-enter!
+    (termux :: <termux-pane>, agent :: <syscall-agent>,
+     line :: <byte-string>) => ()
+  // ColorForth key-enter → handle-cmd → do-gcc
+end method handle-key-enter!;
+
+define method mount-termux-agent-screen!
+    (wb :: <workbench-window>) => ()
+  wb.workbench-termux := make(<termux-pane>);
+  wb.workbench-agent := make(<syscall-agent>);
+end method mount-termux-agent-screen!;`,
+"events.dylan": `define constant $op-open-file     :: <byte> = #x01;
+define constant $op-compile-c     :: <byte> = #x02;
+define constant $op-glow-on       :: <byte> = #x03;
+define constant $op-key-enter     :: <byte> = #x05;
+define constant $op-agent-ask     :: <byte> = #x06;
+
+define class <dylan-event> (<object>)
+  constant slot event-kind :: <symbol>, required-init-keyword: kind:;
+  constant slot event-payload :: <object> = #f, init-keyword: payload:;
+end class <dylan-event>;
+
+define class <dylan-frame> (<object>)
+  constant slot frame-opcode :: <byte>, required-init-keyword: opcode:;
+  constant slot frame-body :: <byte-string> = "", init-keyword: body:;
+  constant slot frame-crc :: <integer> = 0, init-keyword: crc:;
+end class <dylan-frame>;
+
+define function encode-frame
+    (opcode :: <byte>, body :: <byte-string>) => (frame :: <dylan-frame>)
+  make(<dylan-frame>, opcode: opcode, body: body,
+       crc: crc32-ieee-stub(body))
+end function encode-frame;
+
+define function decode-frame
+    (frame :: <dylan-frame>) => (event :: false-or(<dylan-event>))
+  // maps opcode → #"open-file" | #"compile-c" | #"glow-on" | …
+end function decode-frame;`,
+"app.dylan": `define function boot-workplace () => (wp :: <visual-workplace>)
+  let wp = make(<visual-workplace>);
+  mount-termux-agent-screen!(wp.workplace-workbench);
+  on-dylan-event(wp, make-event(#"open-file", payload: "hello.c"));
+  on-dylan-event(wp, make-event(#"glow-on", payload: "hello.c"));
+  wp
+end function boot-workplace;
+
+define function main (#rest args) => ()
+  let wp = boot-workplace();
+  format-out("Visual Workplace (Dylan) booted\\n");
+end function main;`,
+"module.dylan": `define module visual-workplace-ui
+  use common-dylan;
+  use visual-workplace-events;
+  export
+    <visual-workplace>, <workbench-window>,
+    <termux-pane>, <syscall-agent>, <c-glow-state>,
+    open-file!, compile-c!, set-glow!,
+    handle-key-enter!, agent-ask!,
+    mount-termux-agent-screen!, on-dylan-event;
+end module visual-workplace-ui;`
+};
+
+function renderTaggedCF(text) {
+  // lines of: color word color word...  OR plain tokens with color prefix
+  return text.split('\n').map(line => {
+    const parts = line.trimEnd().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '';
+    let html = '';
+    let i = 0;
+    while (i < parts.length) {
+      const c = parts[i];
+      if (['red','green','yellow','cyan','white','magenta'].includes(c) && i+1 < parts.length) {
+        let word = parts[i+1];
+        // allow multi-word white/cyan literals until next color tag
+        i += 2;
+        const buf = [word];
+        while (i < parts.length && !['red','green','yellow','cyan','white','magenta'].includes(parts[i])) {
+          buf.push(parts[i++]);
+        }
+        html += `<span class="${c}">${escapeHtml(buf.join(' '))}</span> `;
+      } else {
+        html += `<span class="cyan">${escapeHtml(c)}</span> `;
+        i++;
+      }
+    }
+    return html;
+  }).join('\\n');
+}
+
+function highlightDylan(src) {
+  return escapeHtml(src)
+    .replace(/\b(define|class|method|function|constant|slot|end|let|if|else|elseif|then|use|export|module|library|generic|select|case|otherwise|unless|for|in|make)\\b/g,
+      '<span class="kw">$1</span>')
+    .replace(/&lt;([a-z0-9_-]+)&gt;/gi, '<span class="cls">&lt;$1&gt;</span>')
+    .replace(/\b([a-z][\w-]*!)\\b/g, '<span class="fn">$1</span>')
+    .replace(/("[^"]*")/g, '<span class="str">$1</span>')
+    .replace(/(\/\/.*)$/gm, '<span class="cm">$1</span>');
+}
+
+/* ---- Termux / glow (same signature feature) ---- */
+const HELLO_C = `#include <stdio.h>
+int main(void) {
+  printf("Hello from Visual Workplace\\n");
+  return 0;
+}
+`;
+const termFS = { cwd: '~/workspace', files: { 'hello.c': HELLO_C, 'sysdemo.c': 'int main(){return 0;}\\n' }, aout: false, history: [] };
+let cGlowActive = false;
+let compileGlowTimer = null;
+
+function looksLikeC(t) {
+  return /#include\b/.test(t) || /\bint\s+main\s*\(/.test(t) || /\bprintf\s*\(/.test(t) || /\bvoid\s+\w+\s*\(/.test(t);
+}
+function setCGlow(on, compileBoost) {
+  cGlowActive = !!on;
+  const pane = document.getElementById('termuxPane');
+  if (pane) {
+    pane.classList.toggle('c-live', !!on);
+    if (compileBoost) {
+      pane.classList.add('compile-live');
+      clearTimeout(compileGlowTimer);
+      compileGlowTimer = setTimeout(() => pane.classList.remove('compile-live'), 2800);
+    }
+  }
+  const led = document.getElementById('termuxLedLabel');
+  if (led) led.textContent = on ? (compileBoost ? 'compile live' : 'C session live') : 'idle';
+}
+function termAppend(html) {
+  const body = document.getElementById('termuxOut');
+  const d = document.createElement('div');
+  d.className = 'termux-line';
+  d.innerHTML = html;
+  body.appendChild(d);
+  body.scrollTop = body.scrollHeight;
+}
+function attrib(cfWord, dyMethod) {
+  return `<span class="attrib"><span class="cf">cf ${escapeHtml(cfWord)}</span> · <span class="dy">dylan ${escapeHtml(dyMethod)}</span></span>`;
+}
+function agentPost(html, cls) {
+  const log = document.getElementById('agentLog');
+  const div = document.createElement('div');
+  div.className = 'agent-msg ' + cls;
+  div.innerHTML = html;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+function agentSyscall(msg) {
+  WorkplaceBridge.agentSyscall(msg);
+  agentPost(`<span class="who">syscall</span>${escapeHtml(msg)}${attrib('agent-syscall','on-dylan-event')}`, 'sys');
+}
+function agentSay(msg) {
+  WorkplaceBridge.agentSay(msg);
+  agentPost(`<span class="who">Grok Bot</span>${escapeHtml(msg)}${attrib('agent-say','agent-ask!')}`, 'bot');
+}
+function agentUser(msg) {
+  agentPost(`<span class="who">you</span>${escapeHtml(msg)}`, 'user');
+}
+function termSys(lines) {
+  (Array.isArray(lines) ? lines : [lines]).forEach(l => {
+    termAppend(`<span class="termux-sys">${escapeHtml(l)}</span>`);
+    agentSyscall(l);
+  });
+}
+
+function handleTermCommand(raw) {
+  const line = raw.replace(/\s+$/, '');
+  termAppend(`<span class="termux-ok">~/workspace $</span> ${escapeHtml(line)}`);
+  if (!line.trim()) return;
+  termFS.history.push(line);
+  WorkplaceBridge.keyEnter(line);
+  WorkplaceBridge.handleCmd(line);
+  WorkplaceBridge.encodeFrame('key-enter', line);
+
+  const parts = line.trim().split(/\s+/);
+  const cmd = parts[0];
+  const args = parts.slice(1);
+
+  if (cmd === 'help') {
+    termAppend('<span class="termux-muted">commands: help clear ls pwd cat gcc clang ./a.out</span>');
+    agentSay('Termux accepts help, ls, cat, gcc/clang, ./a.out. Bridge logs ColorForth + Dylan names.');
+    return;
+  }
+  if (cmd === 'clear') { document.getElementById('termuxOut').innerHTML = ''; return; }
+  if (cmd === 'pwd') { termSys(['getcwd(...)']); termAppend(escapeHtml(termFS.cwd)); return; }
+  if (cmd === 'ls') {
+    termSys(['openat(AT_FDCWD, ".", O_RDONLY|O_DIRECTORY) = 3', 'getdents64(3, /* entries */) = 144']);
+    termAppend(escapeHtml(Object.keys(termFS.files).concat(termFS.aout?['a.out']:[]).join('  ')));
+    return;
+  }
+  if (cmd === 'cat') {
+    const base = (args[0]||'').replace(/^\.\//,'');
+    if (!base) { termAppend('<span class="termux-err">cat: missing file</span>'); return; }
+    termSys([`openat(AT_FDCWD, "${base}", O_RDONLY) = 3`]);
+    if (termFS.files[base] != null) {
+      termAppend(escapeHtml(termFS.files[base]));
+      if (base.endsWith('.c') || looksLikeC(termFS.files[base])) WorkplaceBridge.glowOn(false);
+    } else termAppend(`<span class="termux-err">cat: ${escapeHtml(base)}: No such file</span>`);
+    return;
+  }
+  if (cmd === 'gcc' || cmd === 'clang') {
+    const base = (args.find(a => a.endsWith('.c')) || args[0] || '').replace(/^\.\//,'');
+    if (!base || !termFS.files[base]) {
+      termAppend(`<span class="termux-err">${cmd}: no input files</span>`);
+      return;
+    }
+    WorkplaceBridge.glowOn(false);
+    termSys([
+      `clone(flags=CLONE_VFORK|SIGCHLD) = 4242`,
+      `execve("/usr/bin/${cmd}", ["${cmd}", "${base}", "-o", "a.out"], …) = 0`,
+      `openat(AT_FDCWD, "${base}", O_RDONLY) = 3`,
+      `read(3, /* ${termFS.files[base].length} bytes */) = ${termFS.files[base].length}`,
+      'execve("/usr/bin/as", …) = 0',
+      'execve("/usr/bin/ld", …) = 0',
+      'mmap(NULL, 4096, PROT_READ|PROT_WRITE|PROT_EXEC, …) = 0x7f…'
+    ]);
+    termAppend(`<span class="termux-ok">${cmd}: compiled ${escapeHtml(base)} → a.out</span>`);
+    termFS.aout = true;
+    WorkplaceBridge.glowOn(true);
+    agentSay('Compile path clean. Binary linked; PROT_EXEC mapping observed. Run ./a.out');
+    return;
+  }
+  if (cmd === './a.out' || cmd === 'a.out') {
+    if (!termFS.aout) {
+      termAppend('<span class="termux-err">bash: ./a.out: No such file or directory</span>');
+      return;
+    }
+    termSys([
+      'execve("./a.out", ["./a.out"], …) = 0',
+      'write(1, "Hello from Visual Workplace\\n", 26) = 26'
+    ]);
+    termAppend('Hello from Visual Workplace');
+    termAppend('<span class="termux-muted">[exit 0]</span>');
+    WorkplaceBridge.glowOn(true);
+    agentSay('intercepted write(1, …) from a.out');
+    return;
+  }
+  if (looksLikeC(line)) {
+    WorkplaceBridge.glowOn(false);
+    termSys(['/* C fragment detected on stdin */']);
+    agentSay('C tokens on the wire — glow engaged.');
+    return;
+  }
+  termSys([`execve("/usr/bin/${cmd}", …) = 0`]);
+  termAppend(`<span class="termux-muted">${escapeHtml(cmd)}: traced (educational stub)</span>`);
+}
+
+function agentReply(q) {
+  const s = q.toLowerCase().trim();
+  if (!s) return;
+  WorkplaceBridge.agentAsk(q);
+  agentUser(q);
+  let a;
+  if (/help|commands/.test(s)) a = 'I sit on the syscall path. ColorForth words: c-live, do-gcc, key-enter. Dylan: compile-c!, set-glow!, handle-key-enter!.';
+  else if (/write/.test(s)) a = 'write(fd, buf, n) copies n bytes to a file descriptor.';
+  else if (/glow|colorforth|dylan/.test(s)) a = 'Glow is ColorForth c-live / compile-live and Dylan set-glow!. Bridge trace shows both.';
+  else if (/compile|gcc|clang/.test(s)) a = 'Compile flow: preprocess → cc1 → as → ld. Maps to do-gcc and compile-c!.';
+  else a = 'Try gcc hello.c in Termux, or Bridge buttons. Ask about write, glow, compile.';
+  setTimeout(() => agentSay(a), 160);
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+function mountUI() {
+  WorkplaceBridge.mountDemo();
+  const out = document.getElementById('termuxOut');
+  out.innerHTML = '';
+  termAppend('<span class="termux-muted">Termux · ColorForth key-enter / Dylan handle-key-enter! · educational</span>');
+  termAppend('<span class="termux-muted">Type help · try: ls · cat hello.c · gcc hello.c · ./a.out</span>');
+  document.getElementById('agentLog').innerHTML = '';
+  agentSay('Grok Bot online — ColorForth agent-pane + Dylan &lt;syscall-agent&gt;. Open .c or compile to light c-live.');
+
+  const input = document.getElementById('termuxInput');
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const v = input.value;
+      input.value = '';
+      if (looksLikeC(v)) WorkplaceBridge.keyType(v);
+      handleTermCommand(v);
+    }
+  };
+  input.oninput = () => { if (looksLikeC(input.value)) WorkplaceBridge.keyType(input.value); };
+
+  const send = () => {
+    const v = document.getElementById('agentInput').value.trim();
+    if (!v) return;
+    document.getElementById('agentInput').value = '';
+    agentReply(v);
+  };
+  document.getElementById('agentSend').onclick = send;
+  document.getElementById('agentInput').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } };
+}
+
+/* ---- side panels ---- */
+function showCF(name) {
+  document.getElementById('cfSource').innerHTML = renderTaggedCF(CF_SOURCES[name] || '');
+  [...document.querySelectorAll('#cfTabs button')].forEach(b => b.classList.toggle('active', b.dataset.file === name));
+}
+function showDY(name) {
+  document.getElementById('dySource').innerHTML = highlightDylan(DY_SOURCES[name] || '');
+  [...document.querySelectorAll('#dyTabs button')].forEach(b => b.classList.toggle('active', b.dataset.file === name));
+}
+
+function initTabs() {
+  const cfTabs = document.getElementById('cfTabs');
+  Object.keys(CF_SOURCES).forEach((name, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = name;
+    b.dataset.file = name;
+    b.onclick = () => showCF(name);
+    if (i === 0) b.classList.add('active');
+    cfTabs.appendChild(b);
+  });
+  showCF(Object.keys(CF_SOURCES)[0]);
+
+  const dyTabs = document.getElementById('dyTabs');
+  Object.keys(DY_SOURCES).forEach((name, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = name;
+    b.dataset.file = name;
+    b.onclick = () => showDY(name);
+    if (i === 0) b.classList.add('active');
+    dyTabs.appendChild(b);
+  });
+  showDY(Object.keys(DY_SOURCES)[0]);
+
+  document.querySelectorAll('.side-tabs button').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.side-tabs button').forEach(x => x.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    };
+  });
+
+  document.getElementById('btnDemo').onclick = () => { mountUI(); toast('demo · screen-termux-agent · mount-termux-agent-screen!'); };
+  document.getElementById('btnOpenC').onclick = () => {
+    WorkplaceBridge.openFile('hello.c');
+    WorkplaceBridge.encodeFrame('open-file', 'hello.c');
+    toast('open-file / open-file!');
+  };
+  document.getElementById('btnGcc').onclick = () => {
+    document.getElementById('termuxInput').value = 'gcc hello.c';
+    handleTermCommand('gcc hello.c');
+    document.getElementById('termuxInput').value = '';
+  };
+  document.getElementById('btnGlow').onclick = () => { WorkplaceBridge.glowOn(false); toast('c-live / set-glow!'); };
+}
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Intl.DateTimeFormat([], {
+    weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'
+  }).format(new Date());
+}
+
+initTabs();
+mountUI();
+updateClock();
+setInterval(updateClock, 30000);
+</script>
+
+<!-- offline embedded raw sources (no fetch) -->
+<script id="raw-sources" type="application/json">
+{
+  "colorforth": {
+    "00-boot.cf": "\\ ColorForth Visual Workplace — boot block (educational)\n\\ Load order mirrors the HTML front end composition.\n\ncyan include vocabulary blocks\nyellow include desktop.cf\nyellow include workbench.cf\nyellow include termux.cf\nyellow include agent.cf\nyellow include screen-termux-agent.cf\n\ncyan boot: draw shell then run demo screen\nred workplace\n  green shell\n  green menubar\n  green dock\n  green workbench-window\n  green demo\n  ;\n\nyellow workplace\n",
+    "01-desktop.cf": "\\ ColorForth Visual Workplace — desktop shell (raw word stream)\n\\ Colors assigned in desktop.cf.html / viewer: red=define green=compile\n\\ yellow=execute cyan=comment white=literal magenta=macro\n\ncyan desktop shell · menubar · dock\nred shell\n  green wallpaper\n  green menubar\n  green dock\n  green stage\n  ;\n\ncyan menubar left · appname · clock\nred menubar\n  green apple-btn\n  green appname\n  green menu-file\n  green menu-edit\n  green menu-view\n  green menu-build\n  green menu-window\n  green menu-help\n  green status-wifi\n  green battery\n  green clock\n  ;\n\ncyan dock icons · workbench · termux · docs\nred dock\n  green dock-finder\n  green dock-workbench\n  green dock-termux\n  green dock-docs\n  green dock-settings\n  ;\n\ncyan show / hide workbench on stage\nred show-workbench\n  green stage-show\n  green dock-mark\n  ;\n\nred hide-workbench\n  green stage-hide\n  green dock-clear\n  ;\n\ncyan open a sheet panel by name\nred open-panel\n  white 0\n  green sheet-title!\n  green sheet-body!\n  green sheet-open\n  ;\n\nyellow shell\nyellow menubar\nyellow dock\n",
+    "02-workbench.cf": "\\ ColorForth — workbench window · navigator · editor\n\ncyan workbench chrome · traffic lights · title\nred workbench-window\n  green titlebar\n  green traffic-r\n  green traffic-y\n  green traffic-g\n  green window-title\n  green toolbar\n  green workspace\n  ;\n\ncyan three-column workspace\nred workspace\n  green navigator\n  green editor\n  green inspector\n  ;\n\ncyan file tree · project groups\nred navigator\n  green nav-search\n  green tree-group\n  green file-row\n  green open-file\n  ;\n\ncyan editor tabs · code buffer · console\nred editor\n  green tabs\n  green breadcrumb\n  green code-buffer\n  green console\n  ;\n\ncyan when path ends in .c arm glow\nred open-file\n  green path-type\n  green editor-load\n  green c-check\n  green c-live?\n  ;\n\ncyan c-check ( path -- flag )\nred c-check\n  green .c-suffix?\n  green looks-like-c?\n  green or\n  ;\n\nyellow workbench-window\nyellow workspace\nyellow navigator\nyellow editor\n",
+    "03-termux.cf": "\\ ColorForth — Termux pane · key events · c-live glow\n\ncyan termux pane chrome · led · body · prompt\nred termux-pane\n  green termux-chrome\n  green termux-led\n  green termux-body\n  green termux-prompt\n  green termux-input\n  ;\n\ncyan key event words\nred key-enter\n  green input@\n  green handle-cmd\n  green input-clear\n  ;\n\nred key-type\n  green input@\n  green looks-like-c?\n  green if\n    green c-live\n  green then\n  ;\n\ncyan command dispatch ( addr len -- )\nred handle-cmd\n  green parse-cmd\n  green case\n    green help  green do-help\n    green ls    green do-ls\n    green cat   green do-cat\n    green gcc   green do-gcc\n    green clang green do-gcc\n    green ./a.out green do-run\n  green endcase\n  ;\n\ncyan c-live arms neon chrome on termux-pane\nred c-live\n  white 1\n  green glow!\n  green led-on\n  green agent-c-context\n  ;\n\ncyan compile-live boosts cyan after successful gcc\nred compile-live\n  white 1\n  green glow!\n  green led-boost\n  green agent-compile-ok\n  ;\n\ncyan do-gcc · educational syscall trace\nred do-gcc\n  green c-live\n  green sys-clone\n  green sys-execve\n  green sys-openat\n  green sys-read\n  green sys-as\n  green sys-ld\n  green compile-live\n  ;\n\ncyan looks-like-c? ( addr len -- flag )\nred looks-like-c?\n  green s\" #include\" green search\n  green s\" int main\" green search\n  green or\n  green s\" printf\" green search\n  green or\n  ;\n\nyellow termux-pane\n",
+    "04-agent.cf": "\\ ColorForth — Grok Bot syscall agent pane\n\ncyan agent pane · badge · log · ask\nred agent-pane\n  green agent-chrome\n  green agent-badge\n  green agent-log\n  green agent-ask\n  ;\n\ncyan post a syscall line to the agent log\nred agent-syscall\n  green log-sys\n  green scroll-log\n  ;\n\ncyan bot prose reply\nred agent-say\n  green log-bot\n  green scroll-log\n  ;\n\ncyan user question\nred agent-ask\n  green log-user\n  green reply-pick\n  green agent-say\n  ;\n\ncyan notify C context from editor / termux\nred agent-c-context\n  green s\" C context active\" green agent-syscall\n  ;\n\nred agent-compile-ok\n  green s\" Compile path clean. Run ./a.out\" green agent-say\n  ;\n\nyellow agent-pane\n",
+    "05-screen-termux-agent.cf": "\\ ColorForth demo screen — Termux | Agent split (like the HTML UI)\n\ncyan screen layout: left termux · right agent\nred screen-termux-agent\n  green sheet-termux\n  green termux-split\n  green termux-pane\n  green agent-pane\n  green mount-termux\n  ;\n\ncyan mount wires key-enter · key-type · agent-ask\nred mount-termux\n  green key-enter-bind\n  green key-type-bind\n  green agent-send-bind\n  green banner-help\n  green agent-online\n  ;\n\ncyan boot the demo: open panel then mount\nred demo\n  green s\" Termux · Syscall Agent\" green open-panel\n  green screen-termux-agent\n  ;\n\nyellow demo\n",
+    "blocks.cf": "\\ ColorForth Visual Workplace — blocks.cf\n\\ Concatenated raw vocabulary (desktop · workbench · termux · agent · demo · boot)\n\\ Color annotations: red=define green=compile yellow=execute cyan=comment white=literal magenta=macro\n\\ (see RAW.md). Prefix tags in source are educational ColorForth color words.\n\n\\ ========== BLOCK 01 · desktop ==========\n\\ ColorForth Visual Workplace — desktop shell (raw word stream)\n\\ Colors assigned in desktop.cf.html / viewer: red=define green=compile\n\\ yellow=execute cyan=comment white=literal magenta=macro\n\ncyan desktop shell · menubar · dock\nred shell\n  green wallpaper\n  green menubar\n  green dock\n  green stage\n  ;\n\ncyan menubar left · appname · clock\nred menubar\n  green apple-btn\n  green appname\n  green menu-file\n  green menu-edit\n  green menu-view\n  green menu-build\n  green menu-window\n  green menu-help\n  green status-wifi\n  green battery\n  green clock\n  ;\n\ncyan dock icons · workbench · termux · docs\nred dock\n  green dock-finder\n  green dock-workbench\n  green dock-termux\n  green dock-docs\n  green dock-settings\n  ;\n\ncyan show / hide workbench on stage\nred show-workbench\n  green stage-show\n  green dock-mark\n  ;\n\nred hide-workbench\n  green stage-hide\n  green dock-clear\n  ;\n\ncyan open a sheet panel by name\nred open-panel\n  white 0\n  green sheet-title!\n  green sheet-body!\n  green sheet-open\n  ;\n\nyellow shell\nyellow menubar\nyellow dock\n\n\\ ========== BLOCK 02 · workbench ==========\n\\ ColorForth — workbench window · navigator · editor\n\ncyan workbench chrome · traffic lights · title\nred workbench-window\n  green titlebar\n  green traffic-r\n  green traffic-y\n  green traffic-g\n  green window-title\n  green toolbar\n  green workspace\n  ;\n\ncyan three-column workspace\nred workspace\n  green navigator\n  green editor\n  green inspector\n  ;\n\ncyan file tree · project groups\nred navigator\n  green nav-search\n  green tree-group\n  green file-row\n  green open-file\n  ;\n\ncyan editor tabs · code buffer · console\nred editor\n  green tabs\n  green breadcrumb\n  green code-buffer\n  green console\n  ;\n\ncyan when path ends in .c arm glow\nred open-file\n  green path-type\n  green editor-load\n  green c-check\n  green c-live?\n  ;\n\ncyan c-check ( path -- flag )\nred c-check\n  green .c-suffix?\n  green looks-like-c?\n  green or\n  ;\n\nyellow workbench-window\nyellow workspace\nyellow navigator\nyellow editor\n\n\\ ========== BLOCK 03 · termux / c-live ==========\n\\ ColorForth — Termux pane · key events · c-live glow\n\ncyan termux pane chrome · led · body · prompt\nred termux-pane\n  green termux-chrome\n  green termux-led\n  green termux-body\n  green termux-prompt\n  green termux-input\n  ;\n\ncyan key event words\nred key-enter\n  green input@\n  green handle-cmd\n  green input-clear\n  ;\n\nred key-type\n  green input@\n  green looks-like-c?\n  green if\n    green c-live\n  green then\n  ;\n\ncyan command dispatch ( addr len -- )\nred handle-cmd\n  green parse-cmd\n  green case\n    green help  green do-help\n    green ls    green do-ls\n    green cat   green do-cat\n    green gcc   green do-gcc\n    green clang green do-gcc\n    green ./a.out green do-run\n  green endcase\n  ;\n\ncyan c-live arms neon chrome on termux-pane\nred c-live\n  white 1\n  green glow!\n  green led-on\n  green agent-c-context\n  ;\n\ncyan compile-live boosts cyan after successful gcc\nred compile-live\n  white 1\n  green glow!\n  green led-boost\n  green agent-compile-ok\n  ;\n\ncyan do-gcc · educational syscall trace\nred do-gcc\n  green c-live\n  green sys-clone\n  green sys-execve\n  green sys-openat\n  green sys-read\n  green sys-as\n  green sys-ld\n  green compile-live\n  ;\n\ncyan looks-like-c? ( addr len -- flag )\nred looks-like-c?\n  green s\" #include\" green search\n  green s\" int main\" green search\n  green or\n  green s\" printf\" green search\n  green or\n  ;\n\nyellow termux-pane\n\n\\ ========== BLOCK 04 · agent ==========\n\\ ColorForth — Grok Bot syscall agent pane\n\ncyan agent pane · badge · log · ask\nred agent-pane\n  green agent-chrome\n  green agent-badge\n  green agent-log\n  green agent-ask\n  ;\n\ncyan post a syscall line to the agent log\nred agent-syscall\n  green log-sys\n  green scroll-log\n  ;\n\ncyan bot prose reply\nred agent-say\n  green log-bot\n  green scroll-log\n  ;\n\ncyan user question\nred agent-ask\n  green log-user\n  green reply-pick\n  green agent-say\n  ;\n\ncyan notify C context from editor / termux\nred agent-c-context\n  green s\" C context active\" green agent-syscall\n  ;\n\nred agent-compile-ok\n  green s\" Compile path clean. Run ./a.out\" green agent-say\n  ;\n\nyellow agent-pane\n\n\\ ========== BLOCK 05 · screen-termux-agent / demo ==========\n\\ ColorForth demo screen — Termux | Agent split (like the HTML UI)\n\ncyan screen layout: left termux · right agent\nred screen-termux-agent\n  green sheet-termux\n  green termux-split\n  green termux-pane\n  green agent-pane\n  green mount-termux\n  ;\n\ncyan mount wires key-enter · key-type · agent-ask\nred mount-termux\n  green key-enter-bind\n  green key-type-bind\n  green agent-send-bind\n  green banner-help\n  green agent-online\n  ;\n\ncyan boot the demo: open panel then mount\nred demo\n  green s\" Termux · Syscall Agent\" green open-panel\n  green screen-termux-agent\n  ;\n\nyellow demo\n\n\\ ========== BLOCK 00 · boot / workplace ==========\n\\ ColorForth Visual Workplace — boot block (educational)\n\\ Load order mirrors the HTML front end composition.\n\ncyan include vocabulary blocks\nyellow include desktop.cf\nyellow include workbench.cf\nyellow include termux.cf\nyellow include agent.cf\nyellow include screen-termux-agent.cf\n\ncyan boot: draw shell then run demo screen\nred workplace\n  green shell\n  green menubar\n  green dock\n  green workbench-window\n  green demo\n  ;\n\nyellow workplace\n"
+  },
+  "dylan": {
+    "visual-workplace.lid": "Library: visual-workplace\nFiles: library\n       module\n       events\n       ui\n       app\n       evoke-build\n       evoke-bridge\n",
+    "app.dylan": "Module: visual-workplace\nSynopsis: Application entry — boots Visual Workplace and mounts\n          the Termux | Agent demo screen (ColorForth `demo` word).\n\ndefine function boot-workplace () => (wp :: <visual-workplace>)\n  let wp = make(<visual-workplace>);\n  mount-termux-agent-screen!(wp.workplace-workbench);\n  // Drive UI through the Dylan event protocol (same opcodes the\n  // preview JS simulates when labels say open-file! / compile-c!).\n  on-dylan-event(wp, make-event(#\"open-file\", payload: \"hello.c\"));\n  on-dylan-event(wp, make-event(#\"glow-on\", payload: \"hello.c\"));\n  wp\nend function boot-workplace;\n\ndefine function main (#rest args) => ()\n  ignore(args);\n  let wp = boot-workplace();\n  format-out(\"Visual Workplace (Dylan) booted: %s\\n\",\n             wp.workplace-title);\n  format-out(\"  workbench title: %s\\n\",\n             wp.workplace-workbench.workbench-title);\n  format-out(\"  termux glow: %=\\n\",\n             wp.workplace-workbench.workbench-termux.termux-glow.glow-active?);\n  format-out(\"Educational stub — run under Open Dylan when available.\\n\");\nend function main;\n",
+    "events.dylan": "Module: visual-workplace-events\nSynopsis: Dylan frame / event protocol bridging UI updates\n          (open-file, compile-c, glow-on) — educational stubs\n\n/// Opcodes shared with the ColorForth word names in spirit\ndefine constant $op-open-file     :: <byte> = #x01;\ndefine constant $op-compile-c     :: <byte> = #x02;\ndefine constant $op-glow-on       :: <byte> = #x03;\ndefine constant $op-glow-off      :: <byte> = #x04;\ndefine constant $op-key-enter     :: <byte> = #x05;\ndefine constant $op-agent-ask     :: <byte> = #x06;\ndefine constant $op-syscall-trace :: <byte> = #x07;\n\ndefine constant $frame-magic :: <byte-vector>\n  = as(<byte-vector>, #[#x44, #x59, #x4C, #x4E]); // \"DYLN\"\n\ndefine class <dylan-event> (<object>)\n  constant slot event-kind :: <symbol>,\n    required-init-keyword: kind:;\n  constant slot event-payload :: <object> = #f,\n    init-keyword: payload:;\n  constant slot event-timestamp :: <float> = 0.0,\n    init-keyword: timestamp:;\nend class <dylan-event>;\n\ndefine class <dylan-frame> (<object>)\n  constant slot frame-magic :: <byte-vector> = $frame-magic,\n    init-keyword: magic:;\n  constant slot frame-opcode :: <byte>,\n    required-init-keyword: opcode:;\n  constant slot frame-body :: <byte-string> = \"\",\n    init-keyword: body:;\n  constant slot frame-crc :: <integer> = 0,\n    init-keyword: crc:;\nend class <dylan-frame>;\n\ndefine function make-event\n    (kind :: <symbol>, #key payload, timestamp = 0.0)\n => (e :: <dylan-event>)\n  make(<dylan-event>, kind: kind, payload: payload, timestamp: timestamp)\nend function make-event;\n\n/// Educational CRC32-IEEE stub — folds bytes; not a production codec.\n/// BEAM Evoke.DylanProtocol uses :erlang.crc32/1 over the same body bytes\n/// (magic DYLN + opcode + body + CRC). See evoke-bridge.dylan.\ndefine function crc32-ieee-stub (data :: <byte-string>) => (c :: <integer>)\n  let c :: <integer> = #xffffffff;\n  for (ch in data)\n    c := logxor(c, as(<integer>, ch));\n    for (i from 0 below 8)\n      if (logand(c, 1) ~= 0)\n        c := logxor(ash(c, -1), #xedb88320);\n      else\n        c := ash(c, -1);\n      end if;\n    end for;\n  end for;\n  logxor(c, #xffffffff)\nend function crc32-ieee-stub;\n\ndefine function encode-frame\n    (opcode :: <byte>, body :: <byte-string>)\n => (frame :: <dylan-frame>)\n  make(<dylan-frame>,\n       opcode: opcode,\n       body: body,\n       crc: crc32-ieee-stub(body))\nend function encode-frame;\n\ndefine function decode-frame\n    (frame :: <dylan-frame>)\n => (event :: false-or(<dylan-event>))\n  unless (frame.frame-crc = crc32-ieee-stub(frame.frame-body))\n    #f\n  else\n    let kind\n      = select (frame.frame-opcode)\n          $op-open-file     => #\"open-file\";\n          $op-compile-c     => #\"compile-c\";\n          $op-glow-on       => #\"glow-on\";\n          $op-glow-off      => #\"glow-off\";\n          $op-key-enter     => #\"key-enter\";\n          $op-agent-ask     => #\"agent-ask\";\n          $op-syscall-trace => #\"syscall-trace\";\n          otherwise         => #\"unknown\";\n        end select;\n    make-event(kind, payload: frame.frame-body)\n  end unless\nend function decode-frame;\n",
+    "evoke-bridge.dylan": "Module: visual-workplace\nSynopsis: Evoke BEAM mesh bridge notes — Dylan DYLN frames ↔ WorkplaceBridge.\n\n/// ============================================================================\n/// Evoke BEAM mesh ↔ Dylan frames\n/// ============================================================================\n///\n/// Shared wire format with Evoke.DylanProtocol / Evoke.WorkplaceBridge:\n///\n///   Magic[4]     = \"DYLN\" (#x44 #x59 #x4C #x4E)\n///   Agent_ID[16] = BEAM mesh routing id (zeros when unused on Dylan side)\n///   Opcode[1]\n///   BodyLen[2]   (big-endian)\n///   Body[N]\n///   CRC32[4]     = CRC32-IEEE over Body only\n///\n/// Opcodes (events.dylan $op-* / Elixir workplace_opcodes/0):\n///   #x01 open-file | #x02 compile-c | #x03 glow-on | #x04 glow-off\n///   #x05 key-enter | #x06 agent-ask | #x07 syscall-trace\n///\n/// Path on the mesh:\n///   UI event → Evoke.WorkplaceBridge.fan_event/3\n///            → AgentNode.encode(DYLN) → Registry \"dylan_transport\"\n///            → decode_event/1 → kind atom → on-dylan-event(wp, event)\n///\n/// Dylan educational CRC (`crc32-ieee-stub`) mirrors the IEEE polynomial;\n/// BEAM uses `:erlang.crc32/1` for the production codec.\n\ndefine function evoke-bridge-banner () => ()\n  format-out(\"Evoke bridge: DYLN frames → on-dylan-event (opcodes 0x01–0x07)\\n\");\nend function evoke-bridge-banner;\n\n/// Decode a logical frame and drive the workplace (same path the mesh uses).\ndefine function apply-mesh-frame!\n    (wp :: <visual-workplace>, frame :: <dylan-frame>) => ()\n  let event = decode-frame(frame);\n  if (event)\n    on-dylan-event(wp, event);\n  end if;\nend function apply-mesh-frame!;\n\n/// Convenience: build a frame from an opcode/body and apply it.\ndefine function evoke-mesh-event!\n    (wp :: <visual-workplace>, opcode :: <byte>, body :: <byte-string>) => ()\n  apply-mesh-frame!(wp, encode-frame(opcode, body));\nend function evoke-mesh-event!;\n",
+    "evoke-build.dylan": "Module: visual-workplace\nSynopsis: Evocator entry — start-visual-workplace aliases boot-workplace / main.\n          Point dylan-compiler at visual-workplace.lid; this file documents\n          the app entry for offline / portable builds (no network, no server).\n\n/// Alias used by the portable evoke packaging notes.\ndefine function start-visual-workplace () => (wp :: <visual-workplace>)\n  boot-workplace()\nend function start-visual-workplace;\n\n/// Optional explicit evoke hook — same as main without arg plumbing.\ndefine function evoke-visual-workplace () => ()\n  let wp = start-visual-workplace();\n  format-out(\"evoked: %s (termux|agent mounted)\\n\", wp.workplace-title);\nend function evoke-visual-workplace;\n",
+    "library.dylan": "Module: dylan-user\nSynopsis: Visual Workplace front end — Open Dylan / Apple Dylan style library\n\ndefine library visual-workplace\n  use common-dylan;\n  use io;\n  use system;\n\n  export\n    visual-workplace,\n    visual-workplace-ui,\n    visual-workplace-events;\nend library visual-workplace;\n",
+    "module.dylan": "Module: dylan-user\nSynopsis: Modules for the Visual Workplace Dylan front end\n\ndefine module visual-workplace-events\n  use common-dylan;\n  use streams;\n\n  export\n    <dylan-event>,\n    <dylan-frame>,\n    event-kind, event-payload, event-timestamp,\n    frame-magic, frame-opcode, frame-body, frame-crc,\n    encode-frame, decode-frame,\n    make-event,\n    $op-open-file, $op-compile-c, $op-glow-on, $op-glow-off,\n    $op-key-enter, $op-agent-ask, $op-syscall-trace;\nend module visual-workplace-events;\n\ndefine module visual-workplace-ui\n  use common-dylan;\n  use visual-workplace-events;\n\n  export\n    <visual-workplace>,\n    <workbench-window>,\n    <navigator-pane>,\n    <editor-pane>,\n    <termux-pane>,\n    <syscall-agent>,\n    <c-glow-state>,\n    <dock>,\n    <menubar>,\n    workplace-title, workplace-menubar, workplace-dock, workplace-workbench,\n    workbench-navigator, workbench-editor, workbench-termux, workbench-agent,\n    glow-active?, glow-compile-boost?,\n    open-file!, compile-c!, set-glow!, handle-key-enter!, agent-ask!,\n    mount-termux-agent-screen!,\n    on-dylan-event;\nend module visual-workplace-ui;\n\ndefine module visual-workplace\n  use common-dylan;\n  use visual-workplace-events;\n  use visual-workplace-ui;\n\n  export\n    main,\n    boot-workplace,\n    start-visual-workplace,\n    evoke-visual-workplace,\n    evoke-bridge-banner,\n    apply-mesh-frame!,\n    evoke-mesh-event!;\nend module visual-workplace;\n",
+    "ui.dylan": "Module: visual-workplace-ui\nSynopsis: Object model for the Visual Workplace front end\n          Mirrors ColorForth words: shell, menubar, dock, termux-pane,\n          agent-pane, c-live, key-enter, open-file, do-gcc.\n\ndefine class <c-glow-state> (<object>)\n  slot glow-active? :: <boolean> = #f,\n    init-keyword: active?:;\n  slot glow-compile-boost? :: <boolean> = #f,\n    init-keyword: compile-boost?:;\nend class <c-glow-state>;\n\ndefine class <menubar> (<object>)\n  constant slot menubar-app-name :: <byte-string> = \"Workbench\",\n    init-keyword: app-name:;\n  slot menubar-clock :: <byte-string> = \"\",\n    init-keyword: clock:;\nend class <menubar>;\n\ndefine class <dock> (<object>)\n  slot dock-active-icon :: <symbol> = #\"workbench\",\n    init-keyword: active:;\nend class <dock>;\n\ndefine class <navigator-pane> (<object>)\n  slot navigator-filter :: <byte-string> = \"\",\n    init-keyword: filter:;\n  slot navigator-selection :: false-or(<byte-string>) = #f,\n    init-keyword: selection:;\nend class <navigator-pane>;\n\ndefine class <editor-pane> (<object>)\n  slot editor-path :: false-or(<byte-string>) = #f,\n    init-keyword: path:;\n  slot editor-buffer :: <byte-string> = \"\",\n    init-keyword: buffer:;\n  slot editor-has-c-glow? :: <boolean> = #f;\nend class <editor-pane>;\n\ndefine class <termux-pane> (<object>)\n  slot termux-cwd :: <byte-string>\n    = \"/data/data/com.termux/files/home/workspace\",\n    init-keyword: cwd:;\n  slot termux-history :: <stretchy-vector> = make(<stretchy-vector>);\n  slot termux-aout? :: <boolean> = #f;\n  constant slot termux-glow :: <c-glow-state> = make(<c-glow-state>);\n  slot termux-files :: <string-table> = make(<string-table>);\nend class <termux-pane>;\n\ndefine class <syscall-agent> (<object>)\n  slot agent-log :: <stretchy-vector> = make(<stretchy-vector>);\n  constant slot agent-name :: <byte-string> = \"Grok Bot · syscall agent\";\nend class <syscall-agent>;\n\ndefine class <workbench-window> (<object>)\n  constant slot workbench-navigator :: <navigator-pane>\n    = make(<navigator-pane>);\n  constant slot workbench-editor :: <editor-pane>\n    = make(<editor-pane>);\n  slot workbench-termux :: false-or(<termux-pane>) = #f;\n  slot workbench-agent :: false-or(<syscall-agent>) = #f;\n  slot workbench-title :: <byte-string> = \"Workbench\",\n    init-keyword: title:;\nend class <workbench-window>;\n\ndefine class <visual-workplace> (<object>)\n  constant slot workplace-title :: <byte-string> = \"Visual Workplace\",\n    init-keyword: title:;\n  constant slot workplace-menubar :: <menubar> = make(<menubar>);\n  constant slot workplace-dock :: <dock> = make(<dock>);\n  constant slot workplace-workbench :: <workbench-window>\n    = make(<workbench-window>);\nend class <visual-workplace>;\n\n/// --- Generics (protocol) ------------------------------------------------\n\ndefine generic open-file!\n    (wb :: <workbench-window>, path :: <byte-string>) => ();\n\ndefine generic compile-c!\n    (termux :: <termux-pane>, agent :: <syscall-agent>,\n     source :: <byte-string>) => ();\n\ndefine generic set-glow!\n    (glow :: <c-glow-state>, on? :: <boolean>,\n     #key compile-boost? :: <boolean> = #f) => ();\n\ndefine generic handle-key-enter!\n    (termux :: <termux-pane>, agent :: <syscall-agent>,\n     line :: <byte-string>) => ();\n\ndefine generic agent-ask!\n    (agent :: <syscall-agent>, question :: <byte-string>) => ();\n\ndefine generic mount-termux-agent-screen!\n    (wb :: <workbench-window>) => ();\n\ndefine generic on-dylan-event\n    (wp :: <visual-workplace>, event :: <dylan-event>) => ();\n\n/// --- Methods ------------------------------------------------------------\n\ndefine method set-glow!\n    (glow :: <c-glow-state>, on? :: <boolean>,\n     #key compile-boost? :: <boolean> = #f) => ()\n  glow.glow-active? := on?;\n  glow.glow-compile-boost? := on? & compile-boost?;\nend method set-glow!;\n\ndefine method looks-like-c? (text :: <byte-string>) => (yes? :: <boolean>)\n  // Educational heuristic — mirrors ColorForth looks-like-c?\n  subsequence-position(text, \"#include\")\n    | subsequence-position(text, \"int main\")\n    | subsequence-position(text, \"printf\")\n    | subsequence-position(text, \".c\")\nend method looks-like-c?;\n\ndefine method open-file!\n    (wb :: <workbench-window>, path :: <byte-string>) => ()\n  let ed = wb.workbench-editor;\n  ed.editor-path := path;\n  // Buffer would be loaded from the project tree in a real Open Dylan app.\n  let c? = looks-like-c?(path) | subsequence-position(path, \".c\");\n  ed.editor-has-c-glow? := c?;\n  if (wb.workbench-termux & c?)\n    set-glow!(wb.workbench-termux.termux-glow, #t);\n  end if;\n  wb.workbench-navigator.navigator-selection := path;\nend method open-file!;\n\ndefine method agent-post!\n    (agent :: <syscall-agent>, who :: <byte-string>, text :: <byte-string>)\n => ()\n  add!(agent.agent-log, pair(who, text));\nend method agent-post!;\n\ndefine method compile-c!\n    (termux :: <termux-pane>, agent :: <syscall-agent>,\n     source :: <byte-string>) => ()\n  set-glow!(termux.termux-glow, #t);\n  agent-post!(agent, \"syscall\",\n              concatenate(\"execve(\\\"/usr/bin/gcc\\\", [\\\"gcc\\\", \\\"\",\n                          source, \"\\\"], …) = 0\"));\n  agent-post!(agent, \"syscall\",\n              concatenate(\"openat(AT_FDCWD, \\\"\", source, \"\\\", O_RDONLY) = 3\"));\n  agent-post!(agent, \"syscall\", \"execve(\\\"/usr/bin/as\\\", …) = 0\");\n  agent-post!(agent, \"syscall\", \"execve(\\\"/usr/bin/ld\\\", …) = 0\");\n  termux.termux-aout? := #t;\n  set-glow!(termux.termux-glow, #t, compile-boost?: #t);\n  agent-post!(agent, \"Grok Bot\",\n              \"Compile path clean. Binary linked; PROT_EXEC mapping observed. Run ./a.out\");\nend method compile-c!;\n\ndefine method handle-key-enter!\n    (termux :: <termux-pane>, agent :: <syscall-agent>,\n     line :: <byte-string>) => ()\n  add!(termux.termux-history, line);\n  if (looks-like-c?(line))\n    set-glow!(termux.termux-glow, #t);\n    agent-post!(agent, \"Grok Bot\", \"C tokens on the wire — glow engaged.\");\n  elseif (subsequence-position(line, \"gcc\")\n            | subsequence-position(line, \"clang\"))\n    let src = if (subsequence-position(line, \".c\"))\n                // naive: last token\n                line\n              else\n                \"hello.c\"\n              end if;\n    compile-c!(termux, agent, \"hello.c\");\n  elseif (subsequence-position(line, \"help\"))\n    agent-post!(agent, \"Grok Bot\",\n                \"Termux accepts help, ls, cat, gcc/clang, ./a.out.\");\n  else\n    agent-post!(agent, \"syscall\",\n                concatenate(\"execve(\\\"/bin/\", line, \"\\\", …) = 0\"));\n  end if;\nend method handle-key-enter!;\n\ndefine method agent-ask!\n    (agent :: <syscall-agent>, question :: <byte-string>) => ()\n  agent-post!(agent, \"you\", question);\n  let q = as-lowercase(question);\n  let answer\n    = case\n        subsequence-position(q, \"write\")\n          => \"write(fd, buf, n) copies n bytes to a file descriptor.\";\n        subsequence-position(q, \"glow\")\n          => \"Termux chrome pulses when a .c file is active; compile boosts cyan.\";\n        subsequence-position(q, \"compile\") | subsequence-position(q, \"gcc\")\n          => \"Compile flow: preprocess → cc1 → as → ld.\";\n        otherwise\n          => \"Trace tip: clone → execve → open/read/write → exit. Ask about a syscall.\";\n      end case;\n  agent-post!(agent, \"Grok Bot\", answer);\nend method agent-ask!;\n\ndefine method mount-termux-agent-screen!\n    (wb :: <workbench-window>) => ()\n  wb.workbench-termux := make(<termux-pane>);\n  wb.workbench-agent := make(<syscall-agent>);\n  element-setter(\"hello.c\", wb.workbench-termux.termux-files,\n    \"#include <stdio.h>\\nint main(void) {\\n  printf(\\\"Hello from Visual Workplace\\\\n\\\");\\n  return 0;\\n}\\n\");\n  agent-post!(wb.workbench-agent, \"Grok Bot\",\n              \"Grok Bot online — sitting on clone/execve/open/write.\");\n  wb.workbench-title := \"Termux · Syscall Agent\";\nend method mount-termux-agent-screen!;\n\ndefine method on-dylan-event\n    (wp :: <visual-workplace>, event :: <dylan-event>) => ()\n  let wb = wp.workplace-workbench;\n  select (event.event-kind)\n    #\"open-file\" =>\n      open-file!(wb, as(<byte-string>, event.event-payload | \"\"));\n    #\"compile-c\" =>\n      if (wb.workbench-termux & wb.workbench-agent)\n        compile-c!(wb.workbench-termux, wb.workbench-agent,\n                   as(<byte-string>, event.event-payload | \"hello.c\"));\n      end if;\n    #\"glow-on\" =>\n      if (wb.workbench-termux)\n        set-glow!(wb.workbench-termux.termux-glow, #t);\n      end if;\n    #\"glow-off\" =>\n      if (wb.workbench-termux)\n        set-glow!(wb.workbench-termux.termux-glow, #f);\n      end if;\n    #\"key-enter\" =>\n      if (wb.workbench-termux & wb.workbench-agent)\n        handle-key-enter!(wb.workbench-termux, wb.workbench-agent,\n                          as(<byte-string>, event.event-payload | \"\"));\n      end if;\n    #\"agent-ask\" =>\n      if (wb.workbench-agent)\n        agent-ask!(wb.workbench-agent,\n                   as(<byte-string>, event.event-payload | \"\"));\n      end if;\n    #\"syscall-trace\" =>\n      if (wb.workbench-agent)\n        agent-post!(wb.workbench-agent, \"syscall\",\n                    as(<byte-string>, event.event-payload | \"\"));\n      end if;\n    otherwise => #f;\n  end select;\nend method on-dylan-event;\n"
+  },
+  "beam": {
+    ".formatter.exs": "[\n  inputs: [\"{mix,.formatter}.exs\", \"{config,lib,test}/**/*.{ex,exs}\"]\n]\n",
+    "config/config.exs": "import Config\n\nconfig :logger, level: :info\n\nconfig :evoke,\n  # TCP port for the Dylan WebSocket transport listener.\n  websocket_port: 4002,\n  # Unique-keys registry for agent node :via name registration\n  # (one process per 16-byte Dylan id; :via REQUIRES unique keys).\n  agent_registry: Evoke.AgentRegistry,\n  # Duplicate-keys registry for the transport fan-out topic.\n  # Transports register under `transport_topic` to receive\n  # {:dylan_frame, packet} via Registry.dispatch/3.\n  registry: Evoke.Registry,\n  transport_topic: \"dylan_transport\"\n",
+    "lib/evoke/agent_node.ex": "defmodule Evoke.AgentNode do\n  @moduledoc \"\"\"\n  A single mesh agent: a minimal GenServer holding only its 16-byte Dylan\n  agent id and an emitted-frame counter.\n\n  UI actions are emitted with `emit_ui_action/3` (async cast). On the cast\n  the node encodes the action as a Dylan binary frame and fans it out to\n  every pid registered under the `\"dylan_transport\"` topic in\n  `Evoke.Registry` via `Registry.dispatch/3`, each receiving\n  `{:dylan_frame, packet}`.\n\n  Crash safety: state is deliberately tiny (id + counter), so a restart\n  loses nothing meaningful. Malformed actions are dropped instead of\n  crashing the node — one buggy producer must not take down the mesh.\n  The supervisor restarts nodes `:transient` (abnormal exits only).\n  \"\"\"\n  use GenServer\n\n  alias Evoke.DylanProtocol\n  alias Evoke.Telemetry\n\n  @registry Application.compile_env(:evoke, :registry, Evoke.Registry)\n  @agent_registry Application.compile_env(:evoke, :agent_registry, Evoke.AgentRegistry)\n  @topic Application.compile_env(:evoke, :transport_topic, \"dylan_transport\")\n\n  defstruct [:id, emitted: 0]\n\n  @type t :: %__MODULE__{id: <<_::128>>, emitted: non_neg_integer()}\n\n  @spec start_link(<<_::128>>) :: GenServer.on_start()\n  def start_link(agent_id) when is_binary(agent_id) and byte_size(agent_id) == 16 do\n    GenServer.start_link(__MODULE__, agent_id, name: {:via, Registry, {@agent_registry, agent_id}})\n  end\n\n  @doc \"\"\"\n  Emits a UI action as a Dylan frame, fanned out to all transports.\n  Fire-and-forget: always returns `:ok` once the cast is queued.\n  \"\"\"\n  @spec emit_ui_action(<<_::128>>, 0..255, binary()) :: :ok\n  def emit_ui_action(agent_id, op_code, payload)\n      when is_binary(agent_id) and is_integer(op_code) and is_binary(payload) do\n    GenServer.cast({:via, Registry, {@agent_registry, agent_id}}, {:emit_ui_action, op_code, payload})\n  end\n\n  @impl true\n  def init(agent_id), do: {:ok, %__MODULE__{id: agent_id}}\n\n  @impl true\n  def handle_cast({:emit_ui_action, op, payload}, %__MODULE__{} = state)\n      when is_integer(op) and op >= 0 and op <= 255 and is_binary(payload) do\n    packet = DylanProtocol.encode(state.id, op, payload)\n    Telemetry.inc(:frames_encoded)\n\n    Registry.dispatch(@registry, @topic, fn entries ->\n      for {pid, _value} <- entries, do: send(pid, {:dylan_frame, packet})\n    end)\n\n    Telemetry.inc(:frames_dispatched)\n    {:noreply, %{state | emitted: state.emitted + 1}}\n  end\n\n  # Drop malformed actions instead of crashing the agent.\n  def handle_cast({:emit_ui_action, _op, _payload}, state), do: {:noreply, state}\nend\n",
+    "lib/evoke/agent_supervisor.ex": "defmodule Evoke.AgentSupervisor do\n  @moduledoc \"\"\"\n  DynamicSupervisor owning all `Evoke.AgentNode` processes.\n\n  `spawn_agent/0` mints a fresh 16-byte Dylan agent id (via\n  `:crypto.strong_rand_bytes/1`) and starts the node with\n  `restart: :transient` — a node that exits normally (deliberate\n  shutdown) stays down; only abnormal exits are restarted.\n  \"\"\"\n  use DynamicSupervisor\n\n  @spec start_link(term()) :: Supervisor.on_start()\n  def start_link(init_arg \\\\ []) do\n    DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)\n  end\n\n  @impl true\n  def init(_init_arg) do\n    DynamicSupervisor.init(strategy: :one_for_one)\n  end\n\n  @doc \"\"\"\n  Starts one agent node with a freshly minted 16-byte id.\n\n  Returns `{:ok, agent_id, pid}` so callers can address the node with\n  `Evoke.AgentNode.emit_ui_action/3`.\n  \"\"\"\n  @spec spawn_agent() :: {:ok, binary(), pid()} | {:error, term()}\n  def spawn_agent do\n    agent_id = :crypto.strong_rand_bytes(16)\n\n    child_spec = %{\n      id: {Evoke.AgentNode, agent_id},\n      start: {Evoke.AgentNode, :start_link, [agent_id]},\n      restart: :transient,\n      shutdown: 5_000,\n      type: :worker\n    }\n\n    case DynamicSupervisor.start_child(__MODULE__, child_spec) do\n      {:ok, pid} -> {:ok, agent_id, pid}\n      {:error, reason} -> {:error, reason}\n    end\n  end\nend\n",
+    "lib/evoke/application.ex": "defmodule Evoke.Application do\n  @moduledoc \"\"\"\n  OTP application entry point for the Dylan message mesh.\n\n  Supervision tree (`:one_for_one`):\n\n      Evoke.Supervisor\n      ├── Registry (Evoke.AgentRegistry, keys: :unique)\n      │     * agent nodes :via-register under their 16-byte Dylan id\n      │       (:via name registration REQUIRES unique keys)\n      ├── Registry (Evoke.Registry, keys: :duplicate)\n      │     * transports register under the \"dylan_transport\" topic\n      ├── Evoke.Telemetry            — lock-free :counters\n      ├── Evoke.AgentSupervisor      — DynamicSupervisor for AgentNodes\n      ├── Evoke.Backpressure         — demand-driven frame producer\n      └── Evoke.Transport.WebSocket  — RFC 6455 listener (:websocket_port)\n\n  ## Woz fix note\n\n  The original design used ONE duplicate-keys registry for both agent\n  `:via` names and transport fan-out. `:via` on a duplicate registry\n  raises `ArgumentError` at `start_child` time, so no agent node could\n  ever boot. The split above is the minimal correct topology.\n  \"\"\"\n  use Application\n\n  require Logger\n\n  @impl true\n  def start(_type, _args) do\n    port = Application.get_env(:evoke, :websocket_port, 4002)\n\n    children = [\n      {Registry, keys: :unique, name: agent_registry()},\n      {Registry, keys: :duplicate, name: registry()},\n      Evoke.Telemetry,\n      Evoke.AgentSupervisor,\n      Evoke.Backpressure,\n      {Evoke.Transport.WebSocket, port: port}\n    ]\n\n    Logger.info(\"evoke dylan mesh starting (websocket port #{port})\")\n    Supervisor.start_link(children, strategy: :one_for_one, name: Evoke.Supervisor)\n  end\n\n  defp registry, do: Application.get_env(:evoke, :registry, Evoke.Registry)\n  defp agent_registry, do: Application.get_env(:evoke, :agent_registry, Evoke.AgentRegistry)\nend\n",
+    "lib/evoke/backpressure.ex": "defmodule Evoke.Backpressure do\n  @max_queue 100_000\n\n  @moduledoc \"\"\"\n  Demand-driven Dylan frame producer in pure OTP — GenStage semantics,\n  zero dependencies.\n\n  The producer owns a FIFO queue of pending `{agent_id, op_code, payload}`\n  jobs plus outstanding per-consumer demand. Frames are encoded and\n  delivered as `{:dylan_frame, packet}` **only while demand is available**;\n  with zero demand nothing flows, no matter how deep the queue is.\n\n  `set_congestion/1` models a congested downstream (e.g. a saturated\n  Metal client): while congested, emission pauses but demand and queued\n  jobs are retained, so clearing congestion resumes losslessly.\n\n  The queue is bounded (#{@max_queue} jobs); beyond that the newest jobs\n  are dropped and counted (`dropped` in `stats/0`) instead of growing\n  memory without bound. Consumer deaths are cleaned up via monitors so\n  dead consumers never pin demand.\n\n  This module exists so the mesh needs neither GenStage nor Broadway:\n  demand accounting, queueing, congestion, and consumer-death cleanup are\n  all implemented on top of `GenServer` + `:queue`, keeping `mix test`\n  offline with no hex packages.\n  \"\"\"\n  use GenServer\n\n  alias Evoke.DylanProtocol\n\n  defstruct queue: nil, pending: [], congested: false, emitted: 0, dropped: 0, monitors: %{}\n\n  @type stats :: %{\n          queued: non_neg_integer(),\n          pending_demand: non_neg_integer(),\n          emitted: non_neg_integer(),\n          dropped: non_neg_integer(),\n          congested: boolean()\n        }\n\n  @spec start_link(term()) :: GenServer.on_start()\n  def start_link(_opts \\\\ []) do\n    GenServer.start_link(__MODULE__, [], name: __MODULE__)\n  end\n\n  @doc \"Queues one pending Dylan frame job. Dropped (and counted) if the queue is full.\"\n  @spec enqueue(binary(), 0..255, binary()) :: :ok\n  def enqueue(agent_id, op_code, payload) do\n    GenServer.cast(__MODULE__, {:enqueue, agent_id, op_code, payload})\n  end\n\n  @doc \"Requests `n` frames for `consumer`; each is delivered as `{:dylan_frame, packet}`.\"\n  @spec request_demand(pid(), pos_integer()) :: :ok\n  def request_demand(consumer, n) when is_pid(consumer) and is_integer(n) and n > 0 do\n    GenServer.cast(__MODULE__, {:demand, consumer, n})\n  end\n\n  @doc \"Sets the congestion signal; while true, emission pauses (demand and queue retained).\"\n  @spec set_congestion(boolean()) :: :ok\n  def set_congestion(flag) when is_boolean(flag) do\n    GenServer.call(__MODULE__, {:set_congestion, flag})\n  end\n\n  @doc \"Current producer state: queue depth, outstanding demand, counters, congestion.\"\n  @spec stats() :: stats()\n  def stats do\n    GenServer.call(__MODULE__, :stats)\n  end\n\n  @doc \"Drains the queue and zeroes counters. Intended for tests.\"\n  @spec reset() :: :ok\n  def reset do\n    GenServer.call(__MODULE__, :reset)\n  end\n\n  @impl true\n  def init(_) do\n    {:ok, %__MODULE__{queue: :queue.new()}}\n  end\n\n  @impl true\n  def handle_cast({:enqueue, agent_id, op_code, payload}, state)\n      when is_binary(agent_id) and byte_size(agent_id) == 16 and is_integer(op_code) and\n             op_code >= 0 and op_code <= 255 and is_binary(payload) do\n    if :queue.len(state.queue) < @max_queue do\n      queue = :queue.in({agent_id, op_code, payload}, state.queue)\n      {:noreply, dispatch(%{state | queue: queue})}\n    else\n      {:noreply, %{state | dropped: state.dropped + 1}}\n    end\n  end\n\n  # Malformed jobs are dropped and counted, never allowed to crash the producer.\n  def handle_cast({:enqueue, _agent_id, _op_code, _payload}, state) do\n    {:noreply, %{state | dropped: state.dropped + 1}}\n  end\n\n  @impl true\n  def handle_cast({:demand, consumer, n}, state) do\n    state = %{state | monitors: ensure_monitored(state.monitors, consumer)}\n    {:noreply, dispatch(%{state | pending: state.pending ++ [{consumer, n}]})}\n  end\n\n  @impl true\n  def handle_call({:set_congestion, flag}, _from, state) do\n    {:reply, :ok, dispatch(%{state | congested: flag})}\n  end\n\n  def handle_call(:stats, _from, state) do\n    reply = %{\n      queued: :queue.len(state.queue),\n      pending_demand: Enum.reduce(state.pending, 0, fn {_pid, n}, acc -> acc + n end),\n      emitted: state.emitted,\n      dropped: state.dropped,\n      congested: state.congested\n    }\n\n    {:reply, reply, state}\n  end\n\n  def handle_call(:reset, _from, state) do\n    Enum.each(state.monitors, fn {_pid, ref} -> Process.demonitor(ref, [:flush]) end)\n    {:reply, :ok, %__MODULE__{queue: :queue.new()}}\n  end\n\n  @impl true\n  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do\n    state = %{\n      state\n      | monitors: Map.delete(state.monitors, pid),\n        pending: Enum.reject(state.pending, fn {p, _n} -> p == pid end)\n    }\n\n    {:noreply, state}\n  end\n\n  defp ensure_monitored(monitors, pid) do\n    if Map.has_key?(monitors, pid) do\n      monitors\n    else\n      Map.put(monitors, pid, Process.monitor(pid))\n    end\n  end\n\n  # Emit only while there is outstanding demand and no congestion.\n  # Tail-recursive: safe for deep queues.\n  defp dispatch(%{congested: true} = state), do: state\n  defp dispatch(%{pending: []} = state), do: state\n\n  defp dispatch(state) do\n    case :queue.out(state.queue) do\n      {:empty, _} ->\n        state\n\n      {{:value, {agent_id, op_code, payload}}, queue} ->\n        [{consumer, n} | pending] = state.pending\n        packet = DylanProtocol.encode(agent_id, op_code, payload)\n        send(consumer, {:dylan_frame, packet})\n        pending = if n > 1, do: [{consumer, n - 1} | pending], else: pending\n\n        dispatch(%{state | queue: queue, pending: pending, emitted: state.emitted + 1})\n    end\n  end\nend\n",
+    "lib/evoke/dylan_protocol.ex": "defmodule Evoke.DylanProtocol do\n  @moduledoc \"\"\"\n  Codec for Dylan `<dylan-frame>` wire bytes, shared with\n  `raw/dylan/events.dylan`.\n\n  Frame layout (multi-byte integers big-endian):\n\n      Magic[4]     = \"DYLN\" (0x44 0x59 0x4C 0x4E)\n      Agent_ID[16] = Evoke mesh routing id (zeros when unused)\n      Opcode[1]\n      BodyLen[2]\n      Body[N]\n      CRC32[4]     = CRC32-IEEE over **Body only**\n\n  The Open Dylan side stores the same logical fields on `<dylan-frame>`\n  (magic, opcode, body, crc) without embedding Agent_ID — that field is\n  the BEAM mesh extension so `AgentNode` can fan frames by id. CRC scope\n  matches Dylan's `crc32-ieee-stub` (body only). Elixir uses a real\n  `:erlang.crc32/1` (IEEE); the Dylan function is an educational stub of\n  the same polynomial and remains documented as non-production there.\n\n  ## Workplace opcodes (shared with events.dylan)\n\n      0x01  open-file\n      0x02  compile-c\n      0x03  glow-on\n      0x04  glow-off\n      0x05  key-enter\n      0x06  agent-ask\n      0x07  syscall-trace\n\n  ## Legacy Apple Swarm vector ops (still recognized)\n\n      0x0A  update_avatar_pos\n      0x0B  draw_window_frame\n      0x0C  synthesize_glass_blur\n      0x0D  set_window_title\n      0x0E  canvas_opacity\n  \"\"\"\n\n  @magic \"DYLN\"\n  @agent_id_len 16\n  @max_op 255\n\n  @op_names %{\n    0x01 => :open_file,\n    0x02 => :compile_c,\n    0x03 => :glow_on,\n    0x04 => :glow_off,\n    0x05 => :key_enter,\n    0x06 => :agent_ask,\n    0x07 => :syscall_trace,\n    0x0A => :update_avatar_pos,\n    0x0B => :draw_window_frame,\n    0x0C => :synthesize_glass_blur,\n    0x0D => :set_window_title,\n    0x0E => :canvas_opacity\n  }\n\n  @type agent_id :: <<_::128>>\n  @type op_code :: 0..255\n  @type decode_error :: :crc_mismatch | :corrupted_dylan_packet\n  @type frame :: {agent_id(), op_code(), binary()}\n\n  @doc \"\"\"\n  Encodes a DYLN frame. CRC32-IEEE is computed over `payload` only.\n  \"\"\"\n  @spec encode(agent_id(), op_code(), binary()) :: binary()\n  def encode(agent_id, op_code, payload)\n      when is_binary(agent_id) and byte_size(agent_id) == @agent_id_len and is_integer(op_code) and\n             op_code >= 0 and op_code <= @max_op and is_binary(payload) do\n    header = <<@magic::binary, agent_id::binary, op_code::8, byte_size(payload)::16-big>>\n    crc = :erlang.crc32(payload)\n    <<header::binary, payload::binary, crc::32-big>>\n  end\n\n  @doc \"\"\"\n  Encodes a workplace frame with a zero agent id (pure Dylan interop).\n  \"\"\"\n  @spec encode(op_code(), binary()) :: binary()\n  def encode(op_code, payload)\n      when is_integer(op_code) and op_code >= 0 and op_code <= @max_op and is_binary(payload) do\n    encode(<<0::128>>, op_code, payload)\n  end\n\n  @doc \"\"\"\n  Decodes a DYLN frame, verifying structure then body CRC32.\n  \"\"\"\n  @spec decode(binary()) :: {:ok, frame()} | {:error, decode_error()}\n  def decode(\n        <<@magic::binary, agent_id::binary-16, op_code::8, payload_len::16-big, rest::binary>>\n      ) do\n    case rest do\n      <<payload::binary-size(payload_len), crc::32-big>> ->\n        if :erlang.crc32(payload) == crc do\n          {:ok, {agent_id, op_code, payload}}\n        else\n          {:error, :crc_mismatch}\n        end\n\n      _ ->\n        {:error, :corrupted_dylan_packet}\n    end\n  end\n\n  def decode(_), do: {:error, :corrupted_dylan_packet}\n\n  @doc \"\"\"\n  Human-readable name for an opcode; `:unknown_op` when unassigned.\n  \"\"\"\n  @spec op_name(integer()) :: atom()\n  def op_name(code) when is_integer(code) do\n    Map.get(@op_names, code, :unknown_op)\n  end\n\n  @doc \"Workplace opcode table (Dylan `$op-*` constants).\"\n  @spec workplace_opcodes() :: %{atom() => op_code()}\n  def workplace_opcodes do\n    %{\n      open_file: 0x01,\n      compile_c: 0x02,\n      glow_on: 0x03,\n      glow_off: 0x04,\n      key_enter: 0x05,\n      agent_ask: 0x06,\n      syscall_trace: 0x07\n    }\n  end\nend\n",
+    "lib/evoke/telemetry.ex": "defmodule Evoke.Telemetry do\n  @moduledoc \"\"\"\n  Lock-free mesh counters backed by `:counters` (OTP 21.2+).\n\n  Tracked counters:\n\n    * `:frames_encoded` — Dylan frames encoded by agent nodes\n    * `:frames_dispatched` — frames fanned out to transports\n    * `:crc_failures` — frames rejected by CRC verification\n    * `:ws_clients` — currently connected WebSocket transports\n\n  `snapshot/0` returns current values as a map; `reset/0` zeroes them\n  (used by tests). The `:counters` reference is published via\n  `:persistent_term` at init so `inc/1` is a single lock-free add with\n  no GenServer round-trip on the hot path.\n  \"\"\"\n  use GenServer\n\n  @indices %{frames_encoded: 1, frames_dispatched: 2, crc_failures: 3, ws_clients: 4}\n  @size map_size(@indices)\n\n  @spec start_link(term()) :: GenServer.on_start()\n  def start_link(_opts \\\\ []) do\n    GenServer.start_link(__MODULE__, [], name: __MODULE__)\n  end\n\n  @spec inc(:frames_encoded | :frames_dispatched | :crc_failures | :ws_clients) :: :ok\n  def inc(counter) do\n    :counters.add(ref(), Map.fetch!(@indices, counter), 1)\n    :ok\n  end\n\n  @spec dec(:frames_encoded | :frames_dispatched | :crc_failures | :ws_clients) :: :ok\n  def dec(counter) do\n    :counters.add(ref(), Map.fetch!(@indices, counter), -1)\n    :ok\n  end\n\n  @spec snapshot() :: %{\n          frames_encoded: integer(),\n          frames_dispatched: integer(),\n          crc_failures: integer(),\n          ws_clients: integer()\n        }\n  def snapshot do\n    r = ref()\n    Map.new(@indices, fn {name, idx} -> {name, :counters.get(r, idx)} end)\n  end\n\n  @spec reset() :: :ok\n  def reset do\n    r = ref()\n    Enum.each(@indices, fn {_name, idx} -> :counters.put(r, idx, 0) end)\n    :ok\n  end\n\n  @impl true\n  def init(_) do\n    ref = :counters.new(@size, [:write_concurrency])\n    :persistent_term.put({__MODULE__, :ref}, ref)\n    {:ok, %{ref: ref}}\n  end\n\n  defp ref, do: :persistent_term.get({__MODULE__, :ref})\nend\n",
+    "lib/evoke/transport/websocket.ex": "defmodule Evoke.Transport.WebSocket do\n  @moduledoc \"\"\"\n  Minimal RFC 6455 WebSocket server over `:gen_tcp`. Zero dependencies.\n\n  Each accepted connection performs the HTTP upgrade handshake, then\n  registers itself in `Evoke.Registry` under the `\"dylan_transport\"` topic,\n  so `Evoke.AgentNode` fan-out reaches browsers / Metal clients verbatim.\n  Inbound `{:dylan_frame, packet}` messages are sent as single unmasked\n  binary frames (opcode `0x2`). Client ping frames are answered with pong,\n  close frames are acknowledged, and anything else from the client is\n  dropped — the mesh speaks one thing: Dylan binary frames.\n\n  ## Deliberate tradeoffs (Woz-style)\n\n    * No HTTP routing, TLS, compression, or fragmented-message reassembly.\n    * One Erlang process per connection plus one acceptor; backpressure is\n      the sender's job (`Evoke.Backpressure`), not the socket's.\n    * Connections run with `active: :once` and a parse buffer, so control\n      frames and outbound Dylan frames interleave without a blocked\n      receiver.\n\n  ## Drop-in upgrade path\n\n  Replace `start_link/1` with a Cowboy (or Bandit) listener and keep the\n  contract: register each connection pid under\n  `{Evoke.Registry, \"dylan_transport\"}` and translate\n  `{:dylan_frame, packet}` into a binary WebSocket frame. No other module\n  needs to change.\n  \"\"\"\n  use GenServer\n\n  require Logger\n\n  alias Evoke.Telemetry\n\n  @registry Application.compile_env(:evoke, :registry, Evoke.Registry)\n  @topic Application.compile_env(:evoke, :transport_topic, \"dylan_transport\")\n  @ws_guid \"258EAFA5-E914-47DA-95CA-C5AB0DC85B11\"\n  @max_headers 16_384\n\n  @spec start_link(keyword()) :: GenServer.on_start()\n  def start_link(opts) do\n    port = Keyword.fetch!(opts, :port)\n    GenServer.start_link(__MODULE__, port, name: __MODULE__)\n  end\n\n  @impl true\n  def init(port) do\n    {:ok, lsock} =\n      :gen_tcp.listen(port, [:binary, packet: :raw, active: false, reuseaddr: true, backlog: 128])\n\n    {:ok, _acceptor} = Task.start_link(fn -> accept_loop(lsock) end)\n    Logger.info(\"dylan websocket transport listening on port #{port}\")\n    {:ok, %{listen: lsock, port: port}}\n  end\n\n  @impl true\n  def terminate(_reason, %{listen: lsock}) do\n    :gen_tcp.close(lsock)\n    :ok\n  end\n\n  # -- acceptor ----------------------------------------------------------\n\n  defp accept_loop(lsock) do\n    case :gen_tcp.accept(lsock) do\n      {:ok, sock} ->\n        # Spawn-then-transfer avoids the race where the handler reads\n        # before owning the socket: it blocks on :go until control moves.\n        {:ok, pid} =\n          Task.start_link(fn ->\n            receive do\n              :go -> serve(sock)\n            end\n          end)\n\n        :ok = :gen_tcp.controlling_process(sock, pid)\n        send(pid, :go)\n        accept_loop(lsock)\n\n      {:error, :closed} ->\n        :ok\n\n      {:error, reason} ->\n        Logger.warning(\"dylan ws accept error: #{inspect(reason)}\")\n        accept_loop(lsock)\n    end\n  end\n\n  # -- per-connection handler --------------------------------------------\n\n  defp serve(sock) do\n    :ok = :inet.setopts(sock, keepalive: true)\n\n    case handshake(sock) do\n      :ok ->\n        {:ok, _} = Registry.register(@registry, @topic, %{})\n        Telemetry.inc(:ws_clients)\n\n        try do\n          connection_loop(sock, <<>>)\n        after\n          Telemetry.dec(:ws_clients)\n        end\n\n      {:error, reason} ->\n        Logger.debug(\"dylan ws handshake failed: #{inspect(reason)}\")\n        :gen_tcp.close(sock)\n    end\n  end\n\n  defp connection_loop(sock, buffer) do\n    :ok = :inet.setopts(sock, active: :once)\n\n    receive do\n      {:tcp, ^sock, data} ->\n        case handle_client_data(sock, buffer <> data) do\n          {:ok, rest} -> connection_loop(sock, rest)\n          :closed -> :ok\n        end\n\n      {:tcp_closed, ^sock} ->\n        :ok\n\n      {:tcp_error, ^sock, reason} ->\n        Logger.debug(\"dylan ws tcp error: #{inspect(reason)}\")\n        :ok\n\n      {:dylan_frame, packet} ->\n        :ok = :gen_tcp.send(sock, encode_frame(:binary, packet))\n        connection_loop(sock, buffer)\n    end\n  end\n\n  # -- HTTP upgrade handshake --------------------------------------------\n\n  defp handshake(sock) do\n    with {:ok, request} <- read_http_request(sock, <<>>),\n         {:ok, key} <- websocket_key(request) do\n      accept = :crypto.hash(:sha, key <> @ws_guid) |> Base.encode64()\n\n      response =\n        \"HTTP/1.1 101 Switching Protocols\\r\\n\" <>\n          \"Upgrade: websocket\\r\\n\" <>\n          \"Connection: Upgrade\\r\\n\" <>\n          \"Sec-WebSocket-Accept: #{accept}\\r\\n\" <>\n          \"\\r\\n\"\n\n      :gen_tcp.send(sock, response)\n    end\n  end\n\n  defp read_http_request(_sock, acc) when byte_size(acc) > @max_headers do\n    {:error, :headers_too_large}\n  end\n\n  defp read_http_request(sock, acc) do\n    case :gen_tcp.recv(sock, 0, 5_000) do\n      {:ok, data} ->\n        request = acc <> data\n\n        if :binary.match(request, \"\\r\\n\\r\\n\") != :nomatch do\n          {:ok, request}\n        else\n          read_http_request(sock, request)\n        end\n\n      {:error, reason} ->\n        {:error, reason}\n    end\n  end\n\n  defp websocket_key(request) do\n    key =\n      request\n      |> String.split(\"\\r\\n\")\n      |> Enum.find_value(fn\n        \"Sec-WebSocket-Key:\" <> rest -> String.trim(rest)\n        \"sec-websocket-key:\" <> rest -> String.trim(rest)\n        _ -> nil\n      end)\n\n    if is_binary(key) and key != \"\", do: {:ok, key}, else: {:error, :missing_websocket_key}\n  end\n\n  # -- inbound client frame parsing ---------------------------------------\n\n  defp handle_client_data(_sock, <<>>), do: {:ok, <<>>}\n\n  defp handle_client_data(sock, buffer) do\n    case parse_frame(buffer) do\n      :incomplete ->\n        {:ok, buffer}\n\n      {:error, reason} ->\n        Logger.debug(\"dylan ws frame error: #{inspect(reason)}\")\n        :gen_tcp.close(sock)\n        :closed\n\n      {:ok, %{opcode: 0x8}, _rest} ->\n        :ok = :gen_tcp.send(sock, encode_frame(:close, <<>>))\n        :gen_tcp.close(sock)\n        :closed\n\n      {:ok, %{opcode: 0x9, payload: payload}, rest} ->\n        :ok = :gen_tcp.send(sock, encode_frame(:pong, payload))\n        handle_client_data(sock, rest)\n\n      {:ok, _frame, rest} ->\n        # Text, binary, continuation, or pong from the client carry no\n        # Dylan semantics; drop them and keep parsing pipelined frames.\n        handle_client_data(sock, rest)\n    end\n  end\n\n  # Client frames MUST be masked (RFC 6455 §5.1).\n  defp parse_frame(<<_fin::1, _rsv::3, opcode::4, 1::1, 126::7, len::16-big, rest::binary>>) do\n    parse_masked(opcode, len, rest)\n  end\n\n  defp parse_frame(<<_fin::1, _rsv::3, opcode::4, 1::1, 127::7, len::64-big, rest::binary>>) do\n    parse_masked(opcode, len, rest)\n  end\n\n  defp parse_frame(<<_fin::1, _rsv::3, opcode::4, 1::1, len::7, rest::binary>>) when len < 126 do\n    parse_masked(opcode, len, rest)\n  end\n\n  defp parse_frame(<<_fin::1, _rsv::3, _opcode::4, 0::1, _::7, _::binary>>) do\n    {:error, :unmasked_client_frame}\n  end\n\n  defp parse_frame(_), do: :incomplete\n\n  defp parse_masked(opcode, len, <<mask::binary-4, rest::binary>>) do\n    if byte_size(rest) >= len do\n      <<payload::binary-size(len), remaining::binary>> = rest\n      {:ok, %{opcode: opcode, payload: unmask(mask, payload)}, remaining}\n    else\n      :incomplete\n    end\n  end\n\n  defp parse_masked(_opcode, _len, _rest), do: :incomplete\n\n  defp unmask(mask, payload) do\n    key_stream = Stream.cycle(:binary.bin_to_list(mask))\n\n    payload\n    |> :binary.bin_to_list()\n    |> Enum.zip(key_stream)\n    |> Enum.map(fn {byte, key} -> Bitwise.bxor(byte, key) end)\n    |> :binary.list_to_bin()\n  end\n\n  # -- outbound server frame encoding -------------------------------------\n\n  # Server-to-client frames are never masked (RFC 6455 §5.1).\n  defp encode_frame(:binary, payload), do: server_frame(0x2, payload)\n  defp encode_frame(:pong, payload), do: server_frame(0xA, payload)\n  defp encode_frame(:close, payload), do: server_frame(0x8, payload)\n\n  defp server_frame(opcode, payload) when is_binary(payload) do\n    len = byte_size(payload)\n\n    header =\n      cond do\n        len < 126 -> <<1::1, 0::3, opcode::4, 0::1, len::7>>\n        len < 65_536 -> <<1::1, 0::3, opcode::4, 0::1, 126::7, len::16-big>>\n        true -> <<1::1, 0::3, opcode::4, 0::1, 127::7, len::64-big>>\n      end\n\n    <<header::binary, payload::binary>>\n  end\nend\n",
+    "lib/evoke/workplace_bridge.ex": "defmodule Evoke.WorkplaceBridge do\n  @moduledoc \"\"\"\n  Bridges Visual Workplace UI events onto the Evoke BEAM agent mesh.\n\n  Encodes Dylan DYLN frames (see `Evoke.DylanProtocol` / `events.dylan`),\n  fans them through `Evoke.AgentNode` → Registry `\"dylan_transport\"`, and\n  decodes inbound packets back to workplace event kinds\n  (`:open_file`, `:compile_c`, …) for consumers that call into Dylan's\n  `on-dylan-event`.\n  \"\"\"\n\n  alias Evoke.AgentNode\n  alias Evoke.AgentSupervisor\n  alias Evoke.DylanProtocol\n\n  @type event_kind ::\n          :open_file\n          | :compile_c\n          | :glow_on\n          | :glow_off\n          | :key_enter\n          | :agent_ask\n          | :syscall_trace\n          | :unknown\n\n  @type workplace_event :: %{\n          kind: event_kind(),\n          opcode: DylanProtocol.op_code(),\n          payload: binary(),\n          agent_id: DylanProtocol.agent_id()\n        }\n\n  @doc \"\"\"\n  Encodes a workplace UI event as a DYLN binary frame.\n\n  `kind` may be an atom (`:open_file`) or a Dylan-style string/binary\n  (`\"open-file\"` / `\"open_file\"`).\n  \"\"\"\n  @spec encode_event(atom() | String.t(), binary(), DylanProtocol.agent_id()) :: binary()\n  def encode_event(kind, body \\\\ <<>>, agent_id \\\\ <<0::128>>)\n\n  def encode_event(kind, body, agent_id)\n      when is_binary(body) and is_binary(agent_id) and byte_size(agent_id) == 16 do\n    opcode = resolve_opcode!(kind)\n    DylanProtocol.encode(agent_id, opcode, body)\n  end\n\n  @doc \"\"\"\n  Decodes an inbound DYLN frame to a workplace event map.\n  \"\"\"\n  @spec decode_event(binary()) :: {:ok, workplace_event()} | {:error, DylanProtocol.decode_error()}\n  def decode_event(packet) when is_binary(packet) do\n    case DylanProtocol.decode(packet) do\n      {:ok, {agent_id, opcode, payload}} ->\n        {:ok,\n         %{\n           kind: kind_from_opcode(opcode),\n           opcode: opcode,\n           payload: payload,\n           agent_id: agent_id\n         }}\n\n      {:error, _} = err ->\n        err\n    end\n  end\n\n  @doc \"\"\"\n  Encodes `kind`/`body` and fans the frame across the mesh via the given\n  agent node (`AgentNode.emit_ui_action/3` → Registry dispatch).\n  \"\"\"\n  @spec fan_event(DylanProtocol.agent_id(), atom() | String.t(), binary()) :: :ok\n  def fan_event(agent_id, kind, body \\\\ <<>>)\n      when is_binary(agent_id) and byte_size(agent_id) == 16 and is_binary(body) do\n    opcode = resolve_opcode!(kind)\n    AgentNode.emit_ui_action(agent_id, opcode, body)\n  end\n\n  @doc \"\"\"\n  Spawns a fresh mesh agent (if needed) and fans a workplace event.\n\n  Returns `{:ok, agent_id}` after the cast is queued.\n  \"\"\"\n  @spec fan_event_new(atom() | String.t(), binary()) :: {:ok, binary()} | {:error, term()}\n  def fan_event_new(kind, body \\\\ <<>>) when is_binary(body) do\n    case AgentSupervisor.spawn_agent() do\n      {:ok, agent_id, _pid} ->\n        :ok = fan_event(agent_id, kind, body)\n        {:ok, agent_id}\n\n      {:error, reason} ->\n        {:error, reason}\n    end\n  end\n\n  @doc \"\"\"\n  Maps a decoded event kind to the Dylan `on-dylan-event` symbol name\n  (hyphenated), e.g. `:open_file` → `\"open-file\"`.\n  \"\"\"\n  @spec dylan_symbol(event_kind()) :: String.t()\n  def dylan_symbol(:open_file), do: \"open-file\"\n  def dylan_symbol(:compile_c), do: \"compile-c\"\n  def dylan_symbol(:glow_on), do: \"glow-on\"\n  def dylan_symbol(:glow_off), do: \"glow-off\"\n  def dylan_symbol(:key_enter), do: \"key-enter\"\n  def dylan_symbol(:agent_ask), do: \"agent-ask\"\n  def dylan_symbol(:syscall_trace), do: \"syscall-trace\"\n  def dylan_symbol(_), do: \"unknown\"\n\n  defp resolve_opcode!(kind) when is_integer(kind) and kind >= 0 and kind <= 255, do: kind\n\n  defp resolve_opcode!(kind) when is_atom(kind) do\n    Map.get(DylanProtocol.workplace_opcodes(), kind) ||\n      raise ArgumentError, \"unknown workplace event kind: #{inspect(kind)}\"\n  end\n\n  defp resolve_opcode!(kind) when is_binary(kind) do\n    atom =\n      kind\n      |> String.replace(\"-\", \"_\")\n      |> String.to_existing_atom()\n\n    resolve_opcode!(atom)\n  rescue\n    ArgumentError ->\n      raise ArgumentError, \"unknown workplace event kind: #{inspect(kind)}\"\n  end\n\n  defp kind_from_opcode(op) do\n    case DylanProtocol.op_name(op) do\n      :unknown_op -> :unknown\n      name -> name\n    end\n  end\nend\n",
+    "mix.exs": "defmodule Evoke.MixProject do\n  use Mix.Project\n\n  def project do\n    [\n      app: :evoke,\n      version: \"0.1.0\",\n      elixir: \"~> 1.16\",\n      start_permanent: Mix.env() == :prod,\n      deps: deps()\n    ]\n  end\n\n  # OTP application entry point: {Evoke.Application, []}.\n  # :crypto is required for the WebSocket handshake (SHA-1) and agent ids.\n  def application do\n    [\n      extra_applications: [:logger, :crypto],\n      mod: {Evoke.Application, []}\n    ]\n  end\n\n  # Zero external dependencies: the whole mesh is pure OTP/Elixir so\n  # `mix test` runs fully offline with no hex packages.\n  defp deps do\n    []\n  end\nend\n",
+    "test/evoke/backpressure_test.exs": "defmodule Evoke.BackpressureTest do\n  use ExUnit.Case, async: false\n\n  alias Evoke.Backpressure\n\n  @receive_timeout 5_000\n\n  setup do\n    :ok = Backpressure.reset()\n    :ok\n  end\n\n  defp agent_id, do: :crypto.strong_rand_bytes(16)\n\n  defp take_frame do\n    receive do\n      {:dylan_frame, packet} -> packet\n    after\n      @receive_timeout -> flunk(\"expected a dylan frame for outstanding demand\")\n    end\n  end\n\n  test \"zero demand emits zero frames; demand N delivers exactly N frames\" do\n    for i <- 1..10 do\n      :ok = Backpressure.enqueue(agent_id(), 0x0A, <<i>>)\n    end\n\n    # stats/0 is synchronous, so all enqueues are applied: with no demand\n    # ever requested, nothing may have been emitted.\n    assert %{queued: 10, emitted: 0, pending_demand: 0} = Backpressure.stats()\n    refute_received {:dylan_frame, _}\n\n    :ok = Backpressure.request_demand(self(), 4)\n\n    frames = for _ <- 1..4, do: take_frame()\n\n    assert length(frames) == 4\n    assert %{queued: 6, emitted: 4, pending_demand: 0} = Backpressure.stats()\n    refute_received {:dylan_frame, _}\n\n    for packet <- frames do\n      assert {:ok, {_id, 0x0A, _payload}} = Evoke.DylanProtocol.decode(packet)\n    end\n  end\n\n  test \"congestion signal pauses emission and resumes without loss\" do\n    for i <- 1..6 do\n      :ok = Backpressure.enqueue(agent_id(), 0x0B, <<i>>)\n    end\n\n    :ok = Backpressure.set_congestion(true)\n    :ok = Backpressure.request_demand(self(), 6)\n\n    # Demand is outstanding but congestion holds every frame back.\n    assert %{queued: 6, emitted: 0, congested: true} = Backpressure.stats()\n    refute_received {:dylan_frame, _}\n\n    :ok = Backpressure.set_congestion(false)\n\n    for _ <- 1..6, do: take_frame()\n\n    assert %{queued: 0, emitted: 6, congested: false} = Backpressure.stats()\n    refute_received {:dylan_frame, _}\n  end\n\n  test \"demand beyond the queue depth leaves residual demand, later jobs flow immediately\" do\n    :ok = Backpressure.request_demand(self(), 3)\n    :ok = Backpressure.enqueue(agent_id(), 0x0C, \"one\")\n    :ok = Backpressure.enqueue(agent_id(), 0x0C, \"two\")\n\n    assert {:ok, {_, 0x0C, \"one\"}} = take_frame() |> Evoke.DylanProtocol.decode()\n    assert {:ok, {_, 0x0C, \"two\"}} = take_frame() |> Evoke.DylanProtocol.decode()\n\n    assert %{queued: 0, emitted: 2, pending_demand: 1} = Backpressure.stats()\n\n    :ok = Backpressure.enqueue(agent_id(), 0x0C, \"three\")\n    assert {:ok, {_, 0x0C, \"three\"}} = take_frame() |> Evoke.DylanProtocol.decode()\n    assert %{queued: 0, emitted: 3, pending_demand: 0} = Backpressure.stats()\n  end\nend\n",
+    "test/evoke/dylan_protocol_test.exs": "defmodule Evoke.DylanProtocolTest do\n  use ExUnit.Case, async: true\n\n  alias Evoke.DylanProtocol\n\n  @workplace_ops [\n    {0x01, :open_file},\n    {0x02, :compile_c},\n    {0x03, :glow_on},\n    {0x04, :glow_off},\n    {0x05, :key_enter},\n    {0x06, :agent_ask},\n    {0x07, :syscall_trace}\n  ]\n\n  @legacy_ops [\n    {0x0A, :update_avatar_pos},\n    {0x0B, :draw_window_frame},\n    {0x0C, :synthesize_glass_blur},\n    {0x0D, :set_window_title},\n    {0x0E, :canvas_opacity}\n  ]\n\n  test \"round-trip encode/decode for workplace and legacy op codes\" do\n    for {op, name} <- @workplace_ops ++ @legacy_ops do\n      agent_id = :crypto.strong_rand_bytes(16)\n      payload = :crypto.strong_rand_bytes(64)\n\n      packet = DylanProtocol.encode(agent_id, op, payload)\n\n      assert {:ok, {^agent_id, ^op, ^payload}} = DylanProtocol.decode(packet)\n      assert DylanProtocol.op_name(op) == name\n      assert <<magic::binary-4, _::binary>> = packet\n      assert magic == \"DYLN\"\n    end\n  end\n\n  test \"encode/2 zero-agent workplace frames round-trip\" do\n    packet = DylanProtocol.encode(0x01, \"hello.c\")\n    assert {:ok, {<<0::128>>, 0x01, \"hello.c\"}} = DylanProtocol.decode(packet)\n  end\n\n  test \"empty and large payloads round-trip\" do\n    agent_id = :crypto.strong_rand_bytes(16)\n\n    assert {:ok, {^agent_id, 0x0D, <<>>}} =\n             agent_id |> DylanProtocol.encode(0x0D, <<>>) |> DylanProtocol.decode()\n\n    big = :crypto.strong_rand_bytes(65_535)\n\n    assert {:ok, {^agent_id, 0x0E, ^big}} =\n             agent_id |> DylanProtocol.encode(0x0E, big) |> DylanProtocol.decode()\n  end\n\n  test \"tampered payload fails CRC verification (CRC covers body only)\" do\n    agent_id = :crypto.strong_rand_bytes(16)\n    packet = DylanProtocol.encode(agent_id, 0x01, \"avatar-pos\")\n\n    # Header is 23 bytes: 4 magic + 16 agent id + 1 op + 2 length.\n    <<head::binary-23, byte, rest::binary>> = packet\n    tampered = <<head::binary, Bitwise.bxor(byte, 0xFF)::8, rest::binary>>\n\n    assert {:error, :crc_mismatch} = DylanProtocol.decode(tampered)\n\n    Evoke.Telemetry.inc(:crc_failures)\n    assert Evoke.Telemetry.snapshot().crc_failures >= 1\n  end\n\n  test \"tampered CRC field fails verification\" do\n    packet = DylanProtocol.encode(:crypto.strong_rand_bytes(16), 0x02, \"frame\")\n    body_len = byte_size(packet) - 4\n    <<body::binary-size(body_len), crc::32-big>> = packet\n    bad = <<body::binary, Bitwise.bxor(crc, 0x0000_FFFF)::32-big>>\n\n    assert {:error, :crc_mismatch} = DylanProtocol.decode(bad)\n  end\n\n  test \"truncated packets are structurally corrupt\" do\n    packet = DylanProtocol.encode(:crypto.strong_rand_bytes(16), 0x03, \"blur\")\n\n    assert {:error, :corrupted_dylan_packet} = DylanProtocol.decode(<<\"DYL\">>)\n    assert {:error, :corrupted_dylan_packet} = DylanProtocol.decode(<<>>)\n    assert {:error, :corrupted_dylan_packet} = DylanProtocol.decode(\"DYLN\")\n\n    truncated = binary_part(packet, 0, byte_size(packet) - 5)\n    assert {:error, :corrupted_dylan_packet} = DylanProtocol.decode(truncated)\n  end\n\n  test \"wrong magic is rejected\" do\n    packet = DylanProtocol.encode(:crypto.strong_rand_bytes(16), 0x01, \"spawn\")\n    bad_magic = <<\"XXXX\", binary_part(packet, 4, byte_size(packet) - 4)::binary>>\n\n    assert {:error, :corrupted_dylan_packet} = DylanProtocol.decode(bad_magic)\n  end\n\n  test \"unknown op codes map to :unknown_op\" do\n    assert DylanProtocol.op_name(0xFF) == :unknown_op\n    assert DylanProtocol.op_name(0x08) == :unknown_op\n  end\nend\n",
+    "test/evoke/fanout_test.exs": "defmodule Evoke.FanoutTest do\n  use ExUnit.Case, async: false\n\n  @agent_count 10_000\n  @collect_timeout 30_000\n\n  test \"10k agent nodes fan out one Dylan frame each to the transport collector\" do\n    {:ok, _} = Registry.register(Evoke.Registry, \"dylan_transport\", :fanout_collector)\n\n    ids =\n      for _ <- 1..@agent_count do\n        {:ok, agent_id, _pid} = Evoke.AgentSupervisor.spawn_agent()\n        agent_id\n      end\n\n    # Sub-millisecond serialization target: benchmark encode/3 in isolation.\n    {encode_us, _} =\n      :timer.tc(fn ->\n        for _ <- 1..1_000 do\n          Evoke.DylanProtocol.encode(:crypto.strong_rand_bytes(16), 0x0A, \"avatar-pos\")\n        end\n      end)\n\n    mean_encode_ms = encode_us / 1_000 / 1_000\n    IO.puts(\"dylan encode: mean #{Float.round(mean_encode_ms, 4)} ms/frame over 1000 samples\")\n    assert mean_encode_ms < 1.0\n\n    wall_start = System.monotonic_time(:millisecond)\n\n    for {id, i} <- Enum.with_index(ids) do\n      :ok = Evoke.AgentNode.emit_ui_action(id, 0x0A, <<i::32-big>>)\n    end\n\n    frames =\n      for _ <- 1..@agent_count do\n        receive do\n          {:dylan_frame, packet} -> packet\n        after\n          @collect_timeout -> flunk(\"timed out waiting for all #{@agent_count} dylan frames\")\n        end\n      end\n\n    wall_ms = System.monotonic_time(:millisecond) - wall_start\n    IO.puts(\"fan-out: #{@agent_count} frames collected in #{wall_ms} ms\")\n\n    assert length(frames) == @agent_count\n\n    assert Enum.all?(frames, fn packet ->\n             match?({:ok, _}, Evoke.DylanProtocol.decode(packet))\n           end)\n  end\nend\n",
+    "test/evoke/timing_test.exs": "defmodule Evoke.TimingTest do\n  @moduledoc \"\"\"\n  Agent 4 — SPICE UI Timing & BEAM Latency Verification (ExUnit half).\n\n  Complements Agent 1's `dylan_protocol_test.exs` (codec correctness),\n  `backpressure_test.exs` (demand semantics) and `fanout_test.exs`\n  (10k fan-out correctness) with the TIMING half of the contract:\n\n    * Dylan encode+decode round-trip: mean < 1 ms/op over 10k iterations.\n    * Fan-out: wall-clock split (emit vs. collect) for 1k and 10k agent\n      broadcasts into one collector — numbers reported honestly via IO.puts;\n      the hard assertion is per-message `DylanProtocol.encode/3` < 1 ms.\n    * Backpressure: zero demand -> nothing delivered inside a 50 ms window\n      (verified via `Backpressure.stats/0`); positive demand -> full drain,\n      timed.\n\n  Every measured number is printed with `IO.puts/1` so `mix test` output is\n  the measurement record. Budgets are mapped as a circuit in\n  `SPICE_NETLIST.md` (V_beam -> n_fan -> R_sock -> X_codec -> C_buf).\n\n  API shapes below are grounded in Agent 1's as-built app and tests\n  (authoritative over the original task memo):\n    * `DylanProtocol.decode/1` -> `{:ok, {agent_id, op_code, payload}}`\n      (tuple, NOT a map) | `{:error, :crc_mismatch | :corrupted_dylan_packet}`\n    * `AgentSupervisor.spawn_agent/0` -> `{:ok, agent_id, pid}`\n    * `AgentNode.emit_ui_action/3` -> `:ok`; frames arrive as\n      `{:dylan_frame, packet}` messages at the process registered under\n      `\"dylan_transport\"` in `Evoke.Registry`\n    * `Backpressure.reset/0`, `enqueue/3`, `request_demand/2`, `stats/0`\n  \"\"\"\n  use ExUnit.Case, async: false\n\n  alias Evoke.{DylanProtocol, AgentSupervisor, AgentNode, Backpressure, Telemetry}\n\n  @op_update_avatar_pos 0x0A\n  @collect_timeout 30_000\n\n  # ------------------------------------------------------------------\n  # 1. Encode/decode round-trip latency\n  # ------------------------------------------------------------------\n\n  test \"encode/decode round-trip latency: mean < 1ms over 10k iterations\" do\n    op = @op_update_avatar_pos\n    agent_id = :crypto.strong_rand_bytes(16)\n    payload = <<100.0::float-32-big, 100.0::float-32-big>>\n\n    # Warm-up: code loading / scheduler costs stay out of the sample.\n    Enum.each(1..200, fn _ ->\n      packet = DylanProtocol.encode(agent_id, op, payload)\n      {:ok, _} = DylanProtocol.decode(packet)\n    end)\n\n    n = 10_000\n    t0 = System.monotonic_time(:nanosecond)\n\n    Enum.each(1..n, fn _ ->\n      packet = DylanProtocol.encode(agent_id, op, payload)\n      {:ok, _} = DylanProtocol.decode(packet)\n    end)\n\n    t1 = System.monotonic_time(:nanosecond)\n    mean_us = (t1 - t0) / n / 1_000\n\n    IO.puts(\n      \"[timing] encode+decode round-trip: n=#{n} \" <>\n        \"mean=#{Float.round(mean_us, 3)} µs/op (budget 1000 µs)\"\n    )\n\n    assert mean_us < 1_000,\n           \"mean round-trip #{Float.round(mean_us, 3)} µs exceeds 1 ms budget\"\n\n    # Round-trip correctness anchor on the measured path.\n    packet = DylanProtocol.encode(agent_id, op, payload)\n    assert {:ok, {^agent_id, ^op, ^payload}} = DylanProtocol.decode(packet)\n  end\n\n  # ------------------------------------------------------------------\n  # 2. Fan-out latency: N agent nodes -> one collector\n  # ------------------------------------------------------------------\n\n  test \"fan-out timing: 1k and 10k broadcasts, wall-clock split + per-message encode budget\" do\n    # The collector identity AgentNode.emit_ui_action/3 delivers to\n    # (same wiring as Agent 1's fanout_test).\n    {:ok, _} = Registry.register(Evoke.Registry, \"dylan_transport\", :timing_collector)\n\n    for n <- [1_000, 10_000] do\n      ids =\n        for _ <- 1..n do\n          {:ok, agent_id, _pid} = AgentSupervisor.spawn_agent()\n          agent_id\n        end\n\n      before = Telemetry.snapshot()\n\n      t0 = System.monotonic_time(:millisecond)\n\n      for {id, i} <- Enum.with_index(ids) do\n        :ok = AgentNode.emit_ui_action(id, @op_update_avatar_pos, <<i::32-big>>)\n      end\n\n      t_emitted = System.monotonic_time(:millisecond)\n\n      frames =\n        for _ <- 1..n do\n          receive do\n            {:dylan_frame, packet} -> packet\n          after\n            @collect_timeout -> flunk(\"timed out collecting #{n} fan-out frames\")\n          end\n        end\n\n      t_collected = System.monotonic_time(:millisecond)\n\n      assert length(frames) == n\n      assert Enum.all?(frames, &match?({:ok, _}, DylanProtocol.decode(&1)))\n\n      IO.puts(\n        \"[timing] fan-out n=#{n}: emit_wall=#{t_emitted - t0}ms \" <>\n          \"collect_wall=#{t_collected - t_emitted}ms total=#{t_collected - t0}ms\"\n      )\n\n      IO.puts(\n        \"[timing] fan-out n=#{n}: telemetry before=#{inspect(before)} \" <>\n          \"after=#{inspect(Telemetry.snapshot())}\"\n      )\n\n      # Hard per-message assertion: each encode is sub-millisecond.\n      # (Warmed up first so the max is not a cold-start artifact.)\n      Enum.each(1..100, fn _ ->\n        _ = DylanProtocol.encode(:crypto.strong_rand_bytes(16), @op_update_avatar_pos, \"warm\")\n      end)\n\n      {total_us, max_us} =\n        1..n\n        |> Enum.map(fn _ ->\n          t_a = System.monotonic_time(:nanosecond)\n          _ = DylanProtocol.encode(:crypto.strong_rand_bytes(16), @op_update_avatar_pos, \"avatar-pos\")\n          System.monotonic_time(:nanosecond) - t_a\n        end)\n        |> Enum.reduce({0, 0}, fn us, {sum, mx} -> {sum + us, max(us, mx)} end)\n\n      mean_us = total_us / n / 1_000\n      max_us = div(max_us, 1_000)\n\n      IO.puts(\n        \"[timing] fan-out n=#{n}: per-message encode \" <>\n          \"mean=#{Float.round(mean_us, 2)}µs max=#{max_us}µs (budget 1000µs)\"\n      )\n\n      assert max_us < 1_000, \"per-message encode max #{max_us}µs exceeded 1 ms\"\n    end\n  end\n\n  # ------------------------------------------------------------------\n  # 3. Backpressure timing\n  # ------------------------------------------------------------------\n\n  test \"backpressure timing: zero demand is silent for 50ms, demand drains\" do\n    :ok = Backpressure.reset()\n\n    k = 200\n    op = @op_update_avatar_pos\n\n    for i <- 1..k do\n      :ok = Backpressure.enqueue(:crypto.strong_rand_bytes(16), op, <<i::32-big>>)\n    end\n\n    # Zero demand: a 50 ms window must emit nothing.\n    t0 = System.monotonic_time(:millisecond)\n    Process.sleep(50)\n    refute_received {:dylan_frame, _}\n    window_ms = System.monotonic_time(:millisecond) - t0\n\n    assert %{queued: ^k, emitted: 0, pending_demand: 0} = Backpressure.stats()\n\n    IO.puts(\n      \"[timing] backpressure: zero-demand window #{window_ms}ms -> \" <>\n        \"0 frames emitted, #{k} still queued\"\n    )\n\n    # Positive demand drains everything; time the drain.\n    t1 = System.monotonic_time(:millisecond)\n    :ok = Backpressure.request_demand(self(), k)\n\n    frames =\n      for _ <- 1..k do\n        receive do\n          {:dylan_frame, packet} -> packet\n        after\n          5_000 -> flunk(\"backpressure drain stalled\")\n        end\n      end\n\n    drain_ms = System.monotonic_time(:millisecond) - t1\n\n    assert length(frames) == k\n    assert Enum.all?(frames, &match?({:ok, _}, DylanProtocol.decode(&1)))\n    assert %{queued: 0, emitted: ^k, pending_demand: 0} = Backpressure.stats()\n    refute_received {:dylan_frame, _}\n\n    IO.puts(\"[timing] backpressure: demand drained #{k}/#{k} frames in #{drain_ms}ms, bus empty\")\n  end\nend\n",
+    "test/evoke/workplace_bridge_test.exs": "defmodule Evoke.WorkplaceBridgeTest do\n  use ExUnit.Case, async: false\n\n  alias Evoke.WorkplaceBridge\n\n  test \"encode_event / decode_event round-trip for every workplace kind\" do\n    for kind <- [:open_file, :compile_c, :glow_on, :glow_off, :key_enter, :agent_ask, :syscall_trace] do\n      packet = WorkplaceBridge.encode_event(kind, \"payload-#{kind}\")\n      assert {:ok, event} = WorkplaceBridge.decode_event(packet)\n      assert event.kind == kind\n      assert event.payload == \"payload-#{kind}\"\n      assert WorkplaceBridge.dylan_symbol(kind) =~ \"-\"\n    end\n  end\n\n  test \"hyphenated Dylan kind names encode\" do\n    packet = WorkplaceBridge.encode_event(\"open-file\", \"hello.c\")\n    assert {:ok, %{kind: :open_file, payload: \"hello.c\"}} = WorkplaceBridge.decode_event(packet)\n  end\n\n  test \"fan_event delivers DYLN frame to transport collector\" do\n    {:ok, _} = Registry.register(Evoke.Registry, \"dylan_transport\", :bridge_collector)\n    {:ok, agent_id, _pid} = Evoke.AgentSupervisor.spawn_agent()\n\n    :ok = WorkplaceBridge.fan_event(agent_id, :glow_on, \"hello.c\")\n\n    assert_receive {:dylan_frame, packet}, 5_000\n    assert {:ok, %{kind: :glow_on, payload: \"hello.c\", agent_id: ^agent_id}} =\n             WorkplaceBridge.decode_event(packet)\n  end\nend\n",
+    "test/test_helper.exs": "ExUnit.start()\n"
+  }
+}
+</script>
+<script>
+window.EVOKE_RAW = JSON.parse(document.getElementById("raw-sources").textContent);
+</script>
+</body>
+</html>

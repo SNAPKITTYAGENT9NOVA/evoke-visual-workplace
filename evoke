@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# evoke — portable Visual Workplace raw-code build evocator
+# Zero network. No HTTP server. Assembles ColorForth + Dylan + BEAM into build/out/.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+RAW_CF="$ROOT/raw/colorforth"
+RAW_DY="$ROOT/raw/dylan"
+RAW_BEAM="$ROOT/raw/beam"
+OUT="$ROOT/build/out"
+OPT_PREVIEW="$ROOT/optional/preview"
+
+echo "== evoke: Visual Workplace (ColorForth + Dylan + Evoke BEAM) =="
+echo "root: $ROOT"
+echo "(offline — no network, no http.server)"
+
+rm -rf "$OUT"
+mkdir -p "$OUT/colorforth" "$OUT/dylan" "$OUT/beam"
+
+# --- ColorForth ---
+cp -a "$RAW_CF"/. "$OUT/colorforth/"
+if [[ -f "$RAW_CF/blocks.cf" ]]; then
+  cp "$RAW_CF/blocks.cf" "$OUT/colorforth/WORKPLACE.CF"
+else
+  {
+    echo "\\ ColorForth Visual Workplace — WORKPLACE.CF (evoked)"
+    for f in desktop.cf workbench.cf termux.cf agent.cf screen-termux-agent.cf workplace.cf; do
+      echo ""
+      echo "\\ ========== $f =========="
+      cat "$RAW_CF/$f"
+    done
+  } > "$OUT/colorforth/WORKPLACE.CF"
+fi
+cp "$OUT/colorforth/WORKPLACE.CF" "$OUT/colorforth/blocks.cf" 2>/dev/null || true
+
+# --- Dylan ---
+cp -a "$RAW_DY"/. "$OUT/dylan/"
+
+# --- Evoke BEAM mesh ---
+if [[ -d "$RAW_BEAM" ]]; then
+  cp -a "$RAW_BEAM"/. "$OUT/beam/"
+else
+  echo "(warn) raw/beam missing — skip BEAM copy"
+fi
+
+# --- Bridge map ---
+cp "$ROOT/raw/bridge-map.template.json" "$OUT/bridge-map.json"
+
+STANDALONE="$OUT/workplace-standalone.html"
+if [[ -f "$OPT_PREVIEW/index.html" && -f "$OPT_PREVIEW/bridge.js" ]]; then
+  python3 "$ROOT/scripts/embed_standalone.py" \
+    "$OPT_PREVIEW/index.html" "$OPT_PREVIEW/bridge.js" "$STANDALONE" \
+    "$RAW_CF" "$RAW_DY" "$RAW_BEAM"
+else
+  echo "(skip standalone HTML — optional/preview missing)"
+fi
+
+{
+  echo "Visual Workplace — evoke build manifest"
+  echo "generated_by: ./evoke"
+  echo "offline: true"
+  echo "network: none"
+  echo "stacks: colorforth,dylan,beam"
+  echo ""
+  echo "=== artifacts ==="
+  (cd "$OUT" && find . -type f | sort)
+} > "$OUT/MANIFEST.txt"
+
+echo ""
+echo "OK — build/out filled"
+echo "  $OUT/MANIFEST.txt"
+echo "  $OUT/colorforth/WORKPLACE.CF"
+echo "  $OUT/dylan/  (Open Dylan library)"
+echo "  $OUT/beam/   (Evoke BEAM mesh)"
+echo "  $OUT/bridge-map.json"
+[[ -f "$STANDALONE" ]] && echo "  $STANDALONE"
+echo ""
+echo "Next (on a machine with Open Dylan):"
+echo "  cd build/out/dylan && dylan-compiler -build visual-workplace.lid"
+echo "Next (on a machine with Elixir):"
+echo "  cd build/out/beam && mix test"
+echo "ColorForth: load build/out/colorforth/WORKPLACE.CF on a CF machine."
+exit 0

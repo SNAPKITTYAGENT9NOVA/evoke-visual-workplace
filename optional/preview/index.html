@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark light" />
+  <title>Visual Workplace · ColorForth + Dylan</title>
+  <style>
+    :root {
+      --ink:#eef1f6; --muted:#a8afba; --faint:#7f8792;
+      --glass:rgba(29,32,39,.88); --glass-solid:#24272e; --panel:#1d2026;
+      --panel-2:#292d35; --panel-3:#343944; --line:rgba(255,255,255,.12);
+      --blue:#4da3ff; --green:#55c46d; --orange:#f6b84a; --red:#ff6961;
+      --code:#171a1f; --wall-1:#142c3b; --wall-2:#263f5e; --wall-3:#623d48; --wall-4:#1b4b62;
+      --shadow:0 30px 90px rgba(0,0,0,.58);
+      --cf-red:#ff3030; --cf-green:#30ff30; --cf-yellow:#ffff30; --cf-cyan:#30ffff; --cf-mag:#ff40ff;
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    [hidden]{display:none!important}
+    html,body{height:100%;margin:0;overflow:hidden}
+    body{font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;color:var(--ink);background:var(--wall-2)}
+    button,input{font:inherit;color:inherit}
+    button{cursor:pointer}
+    code,pre,.mono{font-family:"SFMono-Regular",Consolas,monospace}
+
+    .app{height:100dvh;display:grid;grid-template-rows:30px 1fr 28px;background:
+      radial-gradient(ellipse 70% 58% at 79% 20%,color-mix(in srgb,var(--wall-3) 92%,transparent),transparent 66%),
+      radial-gradient(ellipse 72% 72% at 10% 92%,color-mix(in srgb,var(--wall-4) 88%,transparent),transparent 68%),
+      linear-gradient(138deg,var(--wall-1),var(--wall-2) 48%,var(--wall-3))}
+
+    .menubar{display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:rgba(245,248,251,.12);backdrop-filter:blur(24px);border-bottom:1px solid rgba(255,255,255,.12);font-size:12px;font-weight:550;user-select:none}
+    .menu-left{display:flex;gap:16px;align-items:center}.menu-left .appname{font-weight:730}
+    .menu-right{display:flex;gap:12px;align-items:center;color:var(--muted)}
+    .lang-pill{padding:2px 8px;border-radius:999px;border:1px solid var(--line);font-size:10px;font-weight:700;letter-spacing:.04em}
+    .lang-pill.cf{color:var(--cf-yellow);border-color:#554}.lang-pill.dy{color:#b8a0ff;border-color:#435}
+
+    .main{min-height:0;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,0.85fr);gap:0}
+    .workplace{min-height:0;display:flex;flex-direction:column;padding:14px 14px 10px;position:relative}
+    .window{flex:1;min-height:0;border:1px solid rgba(255,255,255,.28);border-radius:var(--radius);background:var(--glass);backdrop-filter:blur(28px);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+    .titlebar{height:40px;display:grid;grid-template-columns:120px 1fr 160px;align-items:center;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--glass-solid) 80%,transparent)}
+    .traffic{display:flex;gap:8px;padding-left:14px}
+    .traffic i{width:12px;height:12px;border-radius:50%;display:block}
+    .traffic .r{background:#ff5f57}.traffic .y{background:#febc2e}.traffic .g{background:#28c840}
+    .window-title{text-align:center;font-size:12px;font-weight:660}
+    .window-meta{justify-self:end;padding-right:12px;font-size:10px;color:var(--muted);display:flex;gap:8px;align-items:center}
+    #bridgeBadge{padding:2px 7px;border-radius:6px;background:var(--panel-3);font-family:monospace;font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #bridgeBadge[data-lang="cf"]{color:var(--cf-yellow)}
+    #bridgeBadge[data-lang="dylan"]{color:#c4b0ff}
+
+    .termux-split{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(220px,0.9fr)}
+    .termux-pane{display:flex;flex-direction:column;min-height:0;background:#0a0c0f;color:#c8f0d0;border-right:1px solid #1e2a22;position:relative;transition:box-shadow .35s,border-color .35s}
+    .termux-chrome,.agent-chrome{height:34px;display:flex;align-items:center;gap:10px;padding:0 12px;font-size:11px;flex:none;user-select:none}
+    .termux-chrome{background:linear-gradient(#1a2220,#121816);border-bottom:1px solid #24302a;color:#8fd9a8}
+    .termux-led{width:8px;height:8px;border-radius:50%;background:#3a4a40;box-shadow:inset 0 0 0 1px #1a221c;transition:background .25s,box-shadow .25s}
+    .termux-pane.c-live .termux-led,.termux-pane.compile-live .termux-led{background:#39ff88;box-shadow:0 0 8px #39ff88,0 0 18px rgba(57,255,136,.55);animation:ledPulse 1.1s ease-in-out infinite}
+    .termux-title{font-weight:700;color:#b8f5c8}
+    .termux-session{margin-left:auto;color:#6a9a78;font-family:monospace;font-size:10.5px}
+    .termux-body{flex:1;min-height:0;overflow:auto;padding:12px 14px 8px;font:12.5px/1.65 monospace}
+    .termux-line{white-space:pre-wrap;word-break:break-word}
+    .termux-sys{color:#6ec8ff}.termux-ok{color:#70d890}.termux-err{color:#ff8a7a}.termux-muted{color:#6a7a70}
+    .termux-prompt-row{display:flex;align-items:center;gap:6px;padding:8px 14px 12px;border-top:1px solid #1e2a22;background:#080a0c}
+    .termux-prompt{color:#70d890;flex:none}
+    .termux-input{flex:1;min-width:0;border:0;background:transparent;color:#e8ffe8;outline:none;font:inherit;caret-color:#39ff88}
+    .termux-pane.c-live{border-color:#39ff88;box-shadow:inset 0 0 0 1px rgba(57,255,136,.55),0 0 28px rgba(57,255,136,.35),0 0 60px rgba(0,220,255,.18)}
+    .termux-pane.compile-live{border-color:#00e5ff;box-shadow:inset 0 0 0 1px rgba(0,229,255,.65),0 0 36px rgba(57,255,136,.5),0 0 80px rgba(0,229,255,.28)}
+    .termux-pane.c-live::after,.termux-pane.compile-live::after{content:"";pointer-events:none;position:absolute;inset:34px 0 0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(57,255,136,.03) 2px,rgba(57,255,136,.03) 4px);opacity:.7;animation:scanDrift 4s linear infinite}
+    @keyframes ledPulse{0%,100%{opacity:1}50%{opacity:.55}}
+    @keyframes scanDrift{from{background-position:0 0}to{background-position:0 40px}}
+
+    .agent-pane{display:flex;flex-direction:column;min-height:0;background:#101418;color:#d5dde6}
+    .agent-chrome{background:linear-gradient(#1c242c,#141a20);border-bottom:1px solid #243040}
+    .agent-badge{width:18px;height:18px;border-radius:5px;background:linear-gradient(145deg,#4da3ff,#7c5cff);display:grid;place-items:center;font-size:9px;font-weight:800;color:#fff}
+    .agent-chrome strong{font-size:11px}.agent-chrome .right{margin-left:auto;color:#7a8a9a;font-size:10px}
+    .agent-log{flex:1;min-height:0;overflow:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:11.5px;line-height:1.45}
+    .agent-msg{padding:8px 10px;border-radius:8px;background:#182028;border:1px solid #243040}
+    .agent-msg.sys{border-color:#1e4a3a;background:#121e1a;color:#9fe8b8;font-family:monospace;font-size:11px}
+    .agent-msg.bot{border-color:#2a3a55;background:#151c28}
+    .agent-msg.user{align-self:flex-end;background:#1a2a40;border-color:#2f4f7a;color:#cfe0ff}
+    .agent-msg .who{display:block;font-size:9.5px;font-weight:700;color:#7a9ab8;margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em}
+    .agent-msg.sys .who{color:#5ecf8a}
+    .agent-msg .attrib{display:block;margin-top:5px;font-size:9px;color:#6a7a8a;font-family:monospace}
+    .agent-msg .attrib .cf{color:var(--cf-yellow)}.agent-msg .attrib .dy{color:#b8a0ff}
+    .agent-input-row{display:flex;gap:6px;padding:8px;border-top:1px solid #243040;background:#12181e}
+    .agent-input{flex:1;height:32px;border:1px solid #2a3848;border-radius:7px;background:#0e141a;color:#e8eef5;padding:0 10px}
+    .agent-send{height:32px;border:0;border-radius:7px;padding:0 12px;background:var(--blue);color:#fff;font-weight:650}
+
+    .side{min-height:0;display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,.1);background:rgba(12,16,22,.72);backdrop-filter:blur(18px)}
+    .side-tabs{display:flex;gap:4px;padding:8px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+    .side-tabs button{border:1px solid var(--line);background:var(--panel-2);border-radius:7px;padding:5px 10px;font-size:11px;font-weight:600}
+    .side-tabs button.active{background:var(--panel-3);color:#fff;border-color:#556}
+    .side-tabs button[data-tab="cf"].active{color:var(--cf-yellow)}
+    .side-tabs button[data-tab="dylan"].active{color:#c4b0ff}
+    .side-body{flex:1;min-height:0;overflow:auto;position:relative}
+    .panel{display:none;height:100%;flex-direction:column}
+    .panel.active{display:flex}
+    .cf-toolbar,.dy-toolbar{display:flex;gap:6px;padding:8px;border-bottom:1px solid #222;flex-wrap:wrap;background:#0a0a0a}
+    .cf-toolbar button,.dy-toolbar button{font-size:10px;padding:4px 8px;border-radius:5px;border:1px solid #333;background:#1a1a1a}
+    .cf-toolbar button.active{color:var(--cf-yellow);border-color:#555}
+    .dy-toolbar button.active{color:#c4b0ff;border-color:#554}
+    .cf-legend{display:flex;flex-wrap:wrap;gap:10px;padding:6px 10px;font-size:10px;color:#aaa;background:#050505;border-bottom:1px solid #1a1a1a}
+    .cf-legend i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px}
+    #cfSource,#dySource{margin:0;padding:14px 16px 40px;background:#000;color:#f0f0f0;font:12.5px/1.55 monospace;white-space:pre-wrap;flex:1;overflow:auto}
+    #cfSource .red{color:var(--cf-red);font-weight:700}
+    #cfSource .green{color:var(--cf-green)}
+    #cfSource .yellow{color:var(--cf-yellow);font-weight:600}
+    #cfSource .cyan{color:var(--cf-cyan);font-style:italic}
+    #cfSource .white{color:#f0f0f0}
+    #cfSource .magenta{color:var(--cf-mag)}
+    #dySource{background:#12141a;color:#d8dde8}
+    #dySource .kw{color:#c792ea} #dySource .cls{color:#82aaff} #dySource .fn{color:#c3e88d}
+    #dySource .cm{color:#637777;font-style:italic} #dySource .str{color:#c3e88d}
+
+    .bridge-panel{padding:8px;display:flex;flex-direction:column;gap:8px;height:100%}
+    #bridgeLog{flex:1;overflow:auto;background:#0e1218;border:1px solid var(--line);border-radius:8px;padding:8px;font:11px/1.45 monospace}
+    .bridge-row{padding:4px 0;border-bottom:1px solid #1a222c;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+    .bridge-tag{font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;min-width:72px}
+    .bridge-row.cf .bridge-tag{color:var(--cf-yellow)}
+    .bridge-row.dylan .bridge-tag{color:#b8a0ff}
+    .bridge-row code{color:#e8eef5}.bridge-note{color:#7a8797}
+    .quick{display:flex;flex-wrap:wrap;gap:6px}
+    .quick button{font-size:11px;padding:6px 10px;border-radius:7px;border:1px solid var(--line);background:var(--panel-2)}
+    .quick button.primary{background:var(--blue);border-color:transparent;color:#fff;font-weight:650}
+
+    .statusbar{display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:rgba(0,0,0,.35);border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+    .dock-hint{display:flex;gap:8px;align-items:center}
+    .dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+
+    .toast{position:fixed;left:50%;bottom:48px;transform:translate(-50%,12px);padding:10px 14px;border-radius:9px;background:#222831;color:#fff;opacity:0;pointer-events:none;transition:.18s;z-index:70;font-size:12px}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+
+    @media(max-width:980px){
+      .main{grid-template-columns:1fr}
+      .side{border-left:0;border-top:1px solid rgba(255,255,255,.1);max-height:42vh}
+      .termux-split{grid-template-columns:1fr;grid-template-rows:1fr 180px}
+      .termux-pane{border-right:0;border-bottom:1px solid #1e2a22}
+    }
+    @media(prefers-reduced-motion:reduce){
+      .termux-pane.c-live::after,.termux-pane.compile-live::after,.termux-pane.c-live .termux-led,.termux-pane.compile-live .termux-led{animation:none}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="menubar">
+    <div class="menu-left">
+      <span class="appname">Workbench</span>
+      <span>File</span><span>Edit</span><span>View</span><span>Build</span><span>Window</span><span>Help</span>
+    </div>
+    <div class="menu-right">
+      <span class="lang-pill cf">ColorForth</span>
+      <span class="lang-pill dy">Dylan</span>
+      <span id="clock"></span>
+    </div>
+  </header>
+
+  <div class="main">
+    <section class="workplace" aria-label="Workplace">
+      <div class="window" role="dialog" aria-label="Termux Syscall Agent">
+        <div class="titlebar">
+          <div class="traffic" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+          <div class="window-title">Termux · Syscall Agent</div>
+          <div class="window-meta"><span id="bridgeBadge" title="Last language call">idle</span><span>CF + Dylan</span></div>
+        </div>
+        <div class="termux-split">
+          <div class="termux-pane" id="termuxPane">
+            <div class="termux-chrome">
+              <span class="termux-led" title="session"></span>
+              <span class="termux-title">Termux</span>
+              <span id="termuxLedLabel" class="termux-muted" style="font-size:10px;color:#6a9a78">idle</span>
+              <span class="termux-session">$ ~/workspace</span>
+            </div>
+            <div class="termux-body" id="termuxOut" aria-live="polite"></div>
+            <div class="termux-prompt-row">
+              <span class="termux-prompt">~/workspace $</span>
+              <input class="termux-input" id="termuxInput" spellcheck="false" autocomplete="off" aria-label="Termux command" placeholder="gcc hello.c" />
+            </div>
+          </div>
+          <aside class="agent-pane" aria-label="Syscall agent">
+            <div class="agent-chrome">
+              <span class="agent-badge">G</span>
+              <strong>Grok Bot · syscall agent</strong>
+              <span class="right">kernel path</span>
+            </div>
+            <div class="agent-log" id="agentLog"></div>
+            <div class="agent-input-row">
+              <input class="agent-input" id="agentInput" placeholder="Ask about write(), gcc, mmap…" aria-label="Ask agent" />
+              <button type="button" class="agent-send" id="agentSend">Send</button>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side" aria-label="Language sources">
+      <div class="side-tabs" role="tablist">
+        <button type="button" class="active" data-tab="cf" role="tab">ColorForth</button>
+        <button type="button" data-tab="dylan" role="tab">Dylan</button>
+        <button type="button" data-tab="bridge" role="tab">Bridge trace</button>
+      </div>
+      <div class="side-body">
+        <div class="panel active" id="panel-cf" role="tabpanel">
+          <div class="cf-legend">
+            <span><i style="background:#ff3030"></i>define</span>
+            <span><i style="background:#30ff30"></i>compile</span>
+            <span><i style="background:#ffff30"></i>execute</span>
+            <span><i style="background:#30ffff"></i>comment</span>
+            <span><i style="background:#f0f0f0"></i>literal</span>
+            <span><i style="background:#ff40ff"></i>macro</span>
+          </div>
+          <div class="cf-toolbar" id="cfTabs"></div>
+          <pre id="cfSource" class="cf-source"></pre>
+        </div>
+        <div class="panel" id="panel-dylan" role="tabpanel">
+          <div class="dy-toolbar" id="dyTabs"></div>
+          <pre id="dySource"></pre>
+        </div>
+        <div class="panel" id="panel-bridge" role="tabpanel">
+          <div class="bridge-panel">
+            <div class="quick">
+              <button type="button" class="primary" id="btnDemo">Run demo / mount</button>
+              <button type="button" id="btnOpenC">open-file hello.c</button>
+              <button type="button" id="btnGcc">gcc hello.c</button>
+              <button type="button" id="btnGlow">c-live</button>
+            </div>
+            <div id="bridgeLog" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="statusbar">
+    <div class="dock-hint"><span class="dot"></span> Preview · simulated ColorForth words + Dylan methods</div>
+    <div>Sources: ../colorforth · ../dylan · open README.md</div>
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="bridge.js"></script>
+<script>
+/* ---- embedded sources (no network required) ---- */
+const CF_SOURCES = {
+"termux.cf": `cyan termux pane chrome · led · body · prompt
+red termux-pane
+  green termux-chrome
+  green termux-led
+  green termux-body
+  green termux-prompt
+  green termux-input
+  magenta ;
+cyan key event words
+red key-enter
+  green input@
+  green handle-cmd
+  green input-clear
+  magenta ;
+red key-type
+  green input@
+  green looks-like-c?
+  green if
+    green c-live
+  green then
+  magenta ;
+red handle-cmd
+  green parse-cmd
+  green case
+    green help green do-help
+    green ls green do-ls
+    green cat green do-cat
+    green gcc green do-gcc
+    green clang green do-gcc
+    green ./a.out green do-run
+  green endcase
+  magenta ;
+red c-live
+  white 1
+  green glow!
+  green led-on
+  green agent-c-context
+  magenta ;
+red compile-live
+  white 1
+  green glow!
+  green led-boost
+  green agent-compile-ok
+  magenta ;
+red do-gcc
+  green c-live
+  green sys-clone
+  green sys-execve
+  green sys-openat
+  green sys-read
+  green sys-as
+  green sys-ld
+  green compile-live
+  magenta ;
+red looks-like-c?
+  green s" white #include green search
+  green s" white int main green search
+  green or
+  green s" white printf green search
+  green or
+  magenta ;
+yellow termux-pane`,
+"screen-termux-agent.cf": `cyan screen layout: left termux · right agent
+red screen-termux-agent
+  green sheet-termux
+  green termux-split
+  green termux-pane
+  green agent-pane
+  green mount-termux
+  magenta ;
+red mount-termux
+  green key-enter-bind
+  green key-type-bind
+  green agent-send-bind
+  green banner-help
+  green agent-online
+  magenta ;
+red demo
+  green s" white Termux · Syscall Agent green open-panel
+  green screen-termux-agent
+  magenta ;
+yellow demo`,
+"agent.cf": `cyan agent pane · badge · log · ask
+red agent-pane
+  green agent-chrome
+  green agent-badge
+  green agent-log
+  green agent-ask
+  magenta ;
+red agent-syscall
+  green log-sys
+  green scroll-log
+  magenta ;
+red agent-say
+  green log-bot
+  green scroll-log
+  magenta ;
+red agent-ask
+  green log-user
+  green reply-pick
+  green agent-say
+  magenta ;
+red agent-c-context
+  green s" white C context active green agent-syscall
+  magenta ;
+red agent-compile-ok
+  green s" white Compile path clean. Run ./a.out green agent-say
+  magenta ;
+yellow agent-pane`,
+"desktop.cf": `cyan desktop shell · menubar · dock
+red shell
+  green wallpaper
+  green menubar
+  green dock
+  green stage
+  magenta ;
+red menubar
+  green apple-btn
+  green appname
+  green menu-file
+  green menu-edit
+  green menu-view
+  green menu-build
+  green menu-window
+  green menu-help
+  green status-wifi
+  green battery
+  green clock
+  magenta ;
+red dock
+  green dock-finder
+  green dock-workbench
+  green dock-termux
+  green dock-docs
+  green dock-settings
+  magenta ;
+yellow shell
+yellow menubar
+yellow dock`,
+"workbench.cf": `cyan workbench chrome · traffic lights · title
+red workbench-window
+  green titlebar
+  green traffic-r
+  green traffic-y
+  green traffic-g
+  green window-title
+  green toolbar
+  green workspace
+  magenta ;
+red workspace
+  green navigator
+  green editor
+  green inspector
+  magenta ;
+red navigator
+  green nav-search
+  green tree-group
+  green file-row
+  green open-file
+  magenta ;
+red editor
+  green tabs
+  green breadcrumb
+  green code-buffer
+  green console
+  magenta ;
+red open-file
+  green path-type
+  green editor-load
+  green c-check
+  green c-live?
+  magenta ;
+yellow workbench-window`,
+"workplace.cf": `cyan include vocabulary blocks
+yellow include white desktop.cf
+yellow include white workbench.cf
+yellow include white termux.cf
+yellow include white agent.cf
+yellow include white screen-termux-agent.cf
+red workplace
+  green shell
+  green menubar
+  green dock
+  green workbench-window
+  green demo
+  magenta ;
+yellow workplace`
+};
+
+const DY_SOURCES = {
+"ui.dylan": `define class <c-glow-state> (<object>)
+  slot glow-active? :: <boolean> = #f;
+  slot glow-compile-boost? :: <boolean> = #f;
+end class <c-glow-state>;
+
+define class <termux-pane> (<object>)
+  slot termux-cwd :: <byte-string>
+    = "/data/data/com.termux/files/home/workspace";
+  constant slot termux-glow :: <c-glow-state> = make(<c-glow-state>);
+  slot termux-aout? :: <boolean> = #f;
+end class <termux-pane>;
+
+define class <syscall-agent> (<object>)
+  slot agent-log :: <stretchy-vector> = make(<stretchy-vector>);
+  constant slot agent-name :: <byte-string> = "Grok Bot · syscall agent";
+end class <syscall-agent>;
+
+define class <workbench-window> (<object>)
+  slot workbench-termux :: false-or(<termux-pane>) = #f;
+  slot workbench-agent :: false-or(<syscall-agent>) = #f;
+end class <workbench-window>;
+
+define class <visual-workplace> (<object>)
+  constant slot workplace-menubar :: <menubar> = make(<menubar>);
+  constant slot workplace-dock :: <dock> = make(<dock>);
+  constant slot workplace-workbench :: <workbench-window>
+    = make(<workbench-window>);
+end class <visual-workplace>;
+
+define method compile-c!
+    (termux :: <termux-pane>, agent :: <syscall-agent>,
+     source :: <byte-string>) => ()
+  set-glow!(termux.termux-glow, #t);
+  // … syscall posts …
+  set-glow!(termux.termux-glow, #t, compile-boost?: #t);
+end method compile-c!;
+
+define method handle-key-enter!
+    (termux :: <termux-pane>, agent :: <syscall-agent>,
+     line :: <byte-string>) => ()
+  // ColorForth key-enter → handle-cmd → do-gcc
+end method handle-key-enter!;
+
+define method mount-termux-agent-screen!
+    (wb :: <workbench-window>) => ()
+  wb.workbench-termux := make(<termux-pane>);
+  wb.workbench-agent := make(<syscall-agent>);
+end method mount-termux-agent-screen!;`,
+"events.dylan": `define constant $op-open-file     :: <byte> = #x01;
+define constant $op-compile-c     :: <byte> = #x02;
+define constant $op-glow-on       :: <byte> = #x03;
+define constant $op-key-enter     :: <byte> = #x05;
+define constant $op-agent-ask     :: <byte> = #x06;
+
+define class <dylan-event> (<object>)
+  constant slot event-kind :: <symbol>, required-init-keyword: kind:;
+  constant slot event-payload :: <object> = #f, init-keyword: payload:;
+end class <dylan-event>;
+
+define class <dylan-frame> (<object>)
+  constant slot frame-opcode :: <byte>, required-init-keyword: opcode:;
+  constant slot frame-body :: <byte-string> = "", init-keyword: body:;
+  constant slot frame-crc :: <integer> = 0, init-keyword: crc:;
+end class <dylan-frame>;
+
+define function encode-frame
+    (opcode :: <byte>, body :: <byte-string>) => (frame :: <dylan-frame>)
+  make(<dylan-frame>, opcode: opcode, body: body,
+       crc: crc32-ieee-stub(body))
+end function encode-frame;
+
+define function decode-frame
+    (frame :: <dylan-frame>) => (event :: false-or(<dylan-event>))
+  // maps opcode → #"open-file" | #"compile-c" | #"glow-on" | …
+end function decode-frame;`,
+"app.dylan": `define function boot-workplace () => (wp :: <visual-workplace>)
+  let wp = make(<visual-workplace>);
+  mount-termux-agent-screen!(wp.workplace-workbench);
+  on-dylan-event(wp, make-event(#"open-file", payload: "hello.c"));
+  on-dylan-event(wp, make-event(#"glow-on", payload: "hello.c"));
+  wp
+end function boot-workplace;
+
+define function main (#rest args) => ()
+  let wp = boot-workplace();
+  format-out("Visual Workplace (Dylan) booted\\n");
+end function main;`,
+"module.dylan": `define module visual-workplace-ui
+  use common-dylan;
+  use visual-workplace-events;
+  export
+    <visual-workplace>, <workbench-window>,
+    <termux-pane>, <syscall-agent>, <c-glow-state>,
+    open-file!, compile-c!, set-glow!,
+    handle-key-enter!, agent-ask!,
+    mount-termux-agent-screen!, on-dylan-event;
+end module visual-workplace-ui;`
+};
+
+function renderTaggedCF(text) {
+  // lines of: color word color word...  OR plain tokens with color prefix
+  return text.split('\n').map(line => {
+    const parts = line.trimEnd().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '';
+    let html = '';
+    let i = 0;
+    while (i < parts.length) {
+      const c = parts[i];
+      if (['red','green','yellow','cyan','white','magenta'].includes(c) && i+1 < parts.length) {
+        let word = parts[i+1];
+        // allow multi-word white/cyan literals until next color tag
+        i += 2;
+        const buf = [word];
+        while (i < parts.length && !['red','green','yellow','cyan','white','magenta'].includes(parts[i])) {
+          buf.push(parts[i++]);
+        }
+        html += `<span class="${c}">${escapeHtml(buf.join(' '))}</span> `;
+      } else {
+        html += `<span class="cyan">${escapeHtml(c)}</span> `;
+        i++;
+      }
+    }
+    return html;
+  }).join('\\n');
+}
+
+function highlightDylan(src) {
+  return escapeHtml(src)
+    .replace(/\b(define|class|method|function|constant|slot|end|let|if|else|elseif|then|use|export|module|library|generic|select|case|otherwise|unless|for|in|make)\\b/g,
+      '<span class="kw">$1</span>')
+    .replace(/&lt;([a-z0-9_-]+)&gt;/gi, '<span class="cls">&lt;$1&gt;</span>')
+    .replace(/\b([a-z][\w-]*!)\\b/g, '<span class="fn">$1</span>')
+    .replace(/("[^"]*")/g, '<span class="str">$1</span>')
+    .replace(/(\/\/.*)$/gm, '<span class="cm">$1</span>');
+}
+
+/* ---- Termux / glow (same signature feature) ---- */
+const HELLO_C = `#include <stdio.h>
+int main(void) {
+  printf("Hello from Visual Workplace\\n");
+  return 0;
+}
+`;
+const termFS = { cwd: '~/workspace', files: { 'hello.c': HELLO_C, 'sysdemo.c': 'int main(){return 0;}\\n' }, aout: false, history: [] };
+let cGlowActive = false;
+let compileGlowTimer = null;
+
+function looksLikeC(t) {
+  return /#include\b/.test(t) || /\bint\s+main\s*\(/.test(t) || /\bprintf\s*\(/.test(t) || /\bvoid\s+\w+\s*\(/.test(t);
+}
+function setCGlow(on, compileBoost) {
+  cGlowActive = !!on;
+  const pane = document.getElementById('termuxPane');
+  if (pane) {
+    pane.classList.toggle('c-live', !!on);
+    if (compileBoost) {
+      pane.classList.add('compile-live');
+      clearTimeout(compileGlowTimer);
+      compileGlowTimer = setTimeout(() => pane.classList.remove('compile-live'), 2800);
+    }
+  }
+  const led = document.getElementById('termuxLedLabel');
+  if (led) led.textContent = on ? (compileBoost ? 'compile live' : 'C session live') : 'idle';
+}
+function termAppend(html) {
+  const body = document.getElementById('termuxOut');
+  const d = document.createElement('div');
+  d.className = 'termux-line';
+  d.innerHTML = html;
+  body.appendChild(d);
+  body.scrollTop = body.scrollHeight;
+}
+function attrib(cfWord, dyMethod) {
+  return `<span class="attrib"><span class="cf">cf ${escapeHtml(cfWord)}</span> · <span class="dy">dylan ${escapeHtml(dyMethod)}</span></span>`;
+}
+function agentPost(html, cls) {
+  const log = document.getElementById('agentLog');
+  const div = document.createElement('div');
+  div.className = 'agent-msg ' + cls;
+  div.innerHTML = html;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+function agentSyscall(msg) {
+  WorkplaceBridge.agentSyscall(msg);
+  agentPost(`<span class="who">syscall</span>${escapeHtml(msg)}${attrib('agent-syscall','on-dylan-event')}`, 'sys');
+}
+function agentSay(msg) {
+  WorkplaceBridge.agentSay(msg);
+  agentPost(`<span class="who">Grok Bot</span>${escapeHtml(msg)}${attrib('agent-say','agent-ask!')}`, 'bot');
+}
+function agentUser(msg) {
+  agentPost(`<span class="who">you</span>${escapeHtml(msg)}`, 'user');
+}
+function termSys(lines) {
+  (Array.isArray(lines) ? lines : [lines]).forEach(l => {
+    termAppend(`<span class="termux-sys">${escapeHtml(l)}</span>`);
+    agentSyscall(l);
+  });
+}
+
+function handleTermCommand(raw) {
+  const line = raw.replace(/\s+$/, '');
+  termAppend(`<span class="termux-ok">~/workspace $</span> ${escapeHtml(line)}`);
+  if (!line.trim()) return;
+  termFS.history.push(line);
+  WorkplaceBridge.keyEnter(line);
+  WorkplaceBridge.handleCmd(line);
+  WorkplaceBridge.encodeFrame('key-enter', line);
+
+  const parts = line.trim().split(/\s+/);
+  const cmd = parts[0];
+  const args = parts.slice(1);
+
+  if (cmd === 'help') {
+    termAppend('<span class="termux-muted">commands: help clear ls pwd cat gcc clang ./a.out</span>');
+    agentSay('Termux accepts help, ls, cat, gcc/clang, ./a.out. Bridge logs ColorForth + Dylan names.');
+    return;
+  }
+  if (cmd === 'clear') { document.getElementById('termuxOut').innerHTML = ''; return; }
+  if (cmd === 'pwd') { termSys(['getcwd(...)']); termAppend(escapeHtml(termFS.cwd)); return; }
+  if (cmd === 'ls') {
+    termSys(['openat(AT_FDCWD, ".", O_RDONLY|O_DIRECTORY) = 3', 'getdents64(3, /* entries */) = 144']);
+    termAppend(escapeHtml(Object.keys(termFS.files).concat(termFS.aout?['a.out']:[]).join('  ')));
+    return;
+  }
+  if (cmd === 'cat') {
+    const base = (args[0]||'').replace(/^\.\//,'');
+    if (!base) { termAppend('<span class="termux-err">cat: missing file</span>'); return; }
+    termSys([`openat(AT_FDCWD, "${base}", O_RDONLY) = 3`]);
+    if (termFS.files[base] != null) {
+      termAppend(escapeHtml(termFS.files[base]));
+      if (base.endsWith('.c') || looksLikeC(termFS.files[base])) WorkplaceBridge.glowOn(false);
+    } else termAppend(`<span class="termux-err">cat: ${escapeHtml(base)}: No such file</span>`);
+    return;
+  }
+  if (cmd === 'gcc' || cmd === 'clang') {
+    const base = (args.find(a => a.endsWith('.c')) || args[0] || '').replace(/^\.\//,'');
+    if (!base || !termFS.files[base]) {
+      termAppend(`<span class="termux-err">${cmd}: no input files</span>`);
+      return;
+    }
+    WorkplaceBridge.glowOn(false);
+    termSys([
+      `clone(flags=CLONE_VFORK|SIGCHLD) = 4242`,
+      `execve("/usr/bin/${cmd}", ["${cmd}", "${base}", "-o", "a.out"], …) = 0`,
+      `openat(AT_FDCWD, "${base}", O_RDONLY) = 3`,
+      `read(3, /* ${termFS.files[base].length} bytes */) = ${termFS.files[base].length}`,
+      'execve("/usr/bin/as", …) = 0',
+      'execve("/usr/bin/ld", …) = 0',
+      'mmap(NULL, 4096, PROT_READ|PROT_WRITE|PROT_EXEC, …) = 0x7f…'
+    ]);
+    termAppend(`<span class="termux-ok">${cmd}: compiled ${escapeHtml(base)} → a.out</span>`);
+    termFS.aout = true;
+    WorkplaceBridge.glowOn(true);
+    agentSay('Compile path clean. Binary linked; PROT_EXEC mapping observed. Run ./a.out');
+    return;
+  }
+  if (cmd === './a.out' || cmd === 'a.out') {
+    if (!termFS.aout) {
+      termAppend('<span class="termux-err">bash: ./a.out: No such file or directory</span>');
+      return;
+    }
+    termSys([
+      'execve("./a.out", ["./a.out"], …) = 0',
+      'write(1, "Hello from Visual Workplace\\n", 26) = 26'
+    ]);
+    termAppend('Hello from Visual Workplace');
+    termAppend('<span class="termux-muted">[exit 0]</span>');
+    WorkplaceBridge.glowOn(true);
+    agentSay('intercepted write(1, …) from a.out');
+    return;
+  }
+  if (looksLikeC(line)) {
+    WorkplaceBridge.glowOn(false);
+    termSys(['/* C fragment detected on stdin */']);
+    agentSay('C tokens on the wire — glow engaged.');
+    return;
+  }
+  termSys([`execve("/usr/bin/${cmd}", …) = 0`]);
+  termAppend(`<span class="termux-muted">${escapeHtml(cmd)}: traced (educational stub)</span>`);
+}
+
+function agentReply(q) {
+  const s = q.toLowerCase().trim();
+  if (!s) return;
+  WorkplaceBridge.agentAsk(q);
+  agentUser(q);
+  let a;
+  if (/help|commands/.test(s)) a = 'I sit on the syscall path. ColorForth words: c-live, do-gcc, key-enter. Dylan: compile-c!, set-glow!, handle-key-enter!.';
+  else if (/write/.test(s)) a = 'write(fd, buf, n) copies n bytes to a file descriptor.';
+  else if (/glow|colorforth|dylan/.test(s)) a = 'Glow is ColorForth c-live / compile-live and Dylan set-glow!. Bridge trace shows both.';
+  else if (/compile|gcc|clang/.test(s)) a = 'Compile flow: preprocess → cc1 → as → ld. Maps to do-gcc and compile-c!.';
+  else a = 'Try gcc hello.c in Termux, or Bridge buttons. Ask about write, glow, compile.';
+  setTimeout(() => agentSay(a), 160);
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+function mountUI() {
+  WorkplaceBridge.mountDemo();
+  const out = document.getElementById('termuxOut');
+  out.innerHTML = '';
+  termAppend('<span class="termux-muted">Termux · ColorForth key-enter / Dylan handle-key-enter! · educational</span>');
+  termAppend('<span class="termux-muted">Type help · try: ls · cat hello.c · gcc hello.c · ./a.out</span>');
+  document.getElementById('agentLog').innerHTML = '';
+  agentSay('Grok Bot online — ColorForth agent-pane + Dylan &lt;syscall-agent&gt;. Open .c or compile to light c-live.');
+
+  const input = document.getElementById('termuxInput');
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const v = input.value;
+      input.value = '';
+      if (looksLikeC(v)) WorkplaceBridge.keyType(v);
+      handleTermCommand(v);
+    }
+  };
+  input.oninput = () => { if (looksLikeC(input.value)) WorkplaceBridge.keyType(input.value); };
+
+  const send = () => {
+    const v = document.getElementById('agentInput').value.trim();
+    if (!v) return;
+    document.getElementById('agentInput').value = '';
+    agentReply(v);
+  };
+  document.getElementById('agentSend').onclick = send;
+  document.getElementById('agentInput').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } };
+}
+
+/* ---- side panels ---- */
+function showCF(name) {
+  document.getElementById('cfSource').innerHTML = renderTaggedCF(CF_SOURCES[name] || '');
+  [...document.querySelectorAll('#cfTabs button')].forEach(b => b.classList.toggle('active', b.dataset.file === name));
+}
+function showDY(name) {
+  document.getElementById('dySource').innerHTML = highlightDylan(DY_SOURCES[name] || '');
+  [...document.querySelectorAll('#dyTabs button')].forEach(b => b.classList.toggle('active', b.dataset.file === name));
+}
+
+function initTabs() {
+  const cfTabs = document.getElementById('cfTabs');
+  Object.keys(CF_SOURCES).forEach((name, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = name;
+    b.dataset.file = name;
+    b.onclick = () => showCF(name);
+    if (i === 0) b.classList.add('active');
+    cfTabs.appendChild(b);
+  });
+  showCF(Object.keys(CF_SOURCES)[0]);
+
+  const dyTabs = document.getElementById('dyTabs');
+  Object.keys(DY_SOURCES).forEach((name, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = name;
+    b.dataset.file = name;
+    b.onclick = () => showDY(name);
+    if (i === 0) b.classList.add('active');
+    dyTabs.appendChild(b);
+  });
+  showDY(Object.keys(DY_SOURCES)[0]);
+
+  document.querySelectorAll('.side-tabs button').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.side-tabs button').forEach(x => x.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    };
+  });
+
+  document.getElementById('btnDemo').onclick = () => { mountUI(); toast('demo · screen-termux-agent · mount-termux-agent-screen!'); };
+  document.getElementById('btnOpenC').onclick = () => {
+    WorkplaceBridge.openFile('hello.c');
+    WorkplaceBridge.encodeFrame('open-file', 'hello.c');
+    toast('open-file / open-file!');
+  };
+  document.getElementById('btnGcc').onclick = () => {
+    document.getElementById('termuxInput').value = 'gcc hello.c';
+    handleTermCommand('gcc hello.c');
+    document.getElementById('termuxInput').value = '';
+  };
+  document.getElementById('btnGlow').onclick = () => { WorkplaceBridge.glowOn(false); toast('c-live / set-glow!'); };
+}
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Intl.DateTimeFormat([], {
+    weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'
+  }).format(new Date());
+}
+
+initTabs();
+mountUI();
+updateClock();
+setInterval(updateClock, 30000);
+</script>
+</body>
+</html>

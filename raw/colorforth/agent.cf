@@ -1,0 +1,39 @@
+\ ColorForth — Grok Bot syscall agent pane
+
+cyan agent pane · badge · log · ask
+red agent-pane
+  green agent-chrome
+  green agent-badge
+  green agent-log
+  green agent-ask
+  ;
+
+cyan post a syscall line to the agent log
+red agent-syscall
+  green log-sys
+  green scroll-log
+  ;
+
+cyan bot prose reply
+red agent-say
+  green log-bot
+  green scroll-log
+  ;
+
+cyan user question
+red agent-ask
+  green log-user
+  green reply-pick
+  green agent-say
+  ;
+
+cyan notify C context from editor / termux
+red agent-c-context
+  green s" C context active" green agent-syscall
+  ;
+
+red agent-compile-ok
+  green s" Compile path clean. Run ./a.out" green agent-say
+  ;
+
+yellow agent-pane

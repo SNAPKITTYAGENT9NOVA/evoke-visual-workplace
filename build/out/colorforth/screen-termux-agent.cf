@@ -1,0 +1,27 @@
+\ ColorForth demo screen — Termux | Agent split (like the HTML UI)
+
+cyan screen layout: left termux · right agent
+red screen-termux-agent
+  green sheet-termux
+  green termux-split
+  green termux-pane
+  green agent-pane
+  green mount-termux
+  ;
+
+cyan mount wires key-enter · key-type · agent-ask
+red mount-termux
+  green key-enter-bind
+  green key-type-bind
+  green agent-send-bind
+  green banner-help
+  green agent-online
+  ;
+
+cyan boot the demo: open panel then mount
+red demo
+  green s" Termux · Syscall Agent" green open-panel
+  green screen-termux-agent
+  ;
+
+yellow demo

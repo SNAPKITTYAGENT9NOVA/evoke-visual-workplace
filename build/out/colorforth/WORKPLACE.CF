@@ -1,0 +1,292 @@
+\ ColorForth Visual Workplace — blocks.cf
+\ Concatenated raw vocabulary (desktop · workbench · termux · agent · demo · boot)
+\ Color annotations: red=define green=compile yellow=execute cyan=comment white=literal magenta=macro
+\ (see RAW.md). Prefix tags in source are educational ColorForth color words.
+
+\ ========== BLOCK 01 · desktop ==========
+\ ColorForth Visual Workplace — desktop shell (raw word stream)
+\ Colors assigned in desktop.cf.html / viewer: red=define green=compile
+\ yellow=execute cyan=comment white=literal magenta=macro
+
+cyan desktop shell · menubar · dock
+red shell
+  green wallpaper
+  green menubar
+  green dock
+  green stage
+  ;
+
+cyan menubar left · appname · clock
+red menubar
+  green apple-btn
+  green appname
+  green menu-file
+  green menu-edit
+  green menu-view
+  green menu-build
+  green menu-window
+  green menu-help
+  green status-wifi
+  green battery
+  green clock
+  ;
+
+cyan dock icons · workbench · termux · docs
+red dock
+  green dock-finder
+  green dock-workbench
+  green dock-termux
+  green dock-docs
+  green dock-settings
+  ;
+
+cyan show / hide workbench on stage
+red show-workbench
+  green stage-show
+  green dock-mark
+  ;
+
+red hide-workbench
+  green stage-hide
+  green dock-clear
+  ;
+
+cyan open a sheet panel by name
+red open-panel
+  white 0
+  green sheet-title!
+  green sheet-body!
+  green sheet-open
+  ;
+
+yellow shell
+yellow menubar
+yellow dock
+
+\ ========== BLOCK 02 · workbench ==========
+\ ColorForth — workbench window · navigator · editor
+
+cyan workbench chrome · traffic lights · title
+red workbench-window
+  green titlebar
+  green traffic-r
+  green traffic-y
+  green traffic-g
+  green window-title
+  green toolbar
+  green workspace
+  ;
+
+cyan three-column workspace
+red workspace
+  green navigator
+  green editor
+  green inspector
+  ;
+
+cyan file tree · project groups
+red navigator
+  green nav-search
+  green tree-group
+  green file-row
+  green open-file
+  ;
+
+cyan editor tabs · code buffer · console
+red editor
+  green tabs
+  green breadcrumb
+  green code-buffer
+  green console
+  ;
+
+cyan when path ends in .c arm glow
+red open-file
+  green path-type
+  green editor-load
+  green c-check
+  green c-live?
+  ;
+
+cyan c-check ( path -- flag )
+red c-check
+  green .c-suffix?
+  green looks-like-c?
+  green or
+  ;
+
+yellow workbench-window
+yellow workspace
+yellow navigator
+yellow editor
+
+\ ========== BLOCK 03 · termux / c-live ==========
+\ ColorForth — Termux pane · key events · c-live glow
+
+cyan termux pane chrome · led · body · prompt
+red termux-pane
+  green termux-chrome
+  green termux-led
+  green termux-body
+  green termux-prompt
+  green termux-input
+  ;
+
+cyan key event words
+red key-enter
+  green input@
+  green handle-cmd
+  green input-clear
+  ;
+
+red key-type
+  green input@
+  green looks-like-c?
+  green if
+    green c-live
+  green then
+  ;
+
+cyan command dispatch ( addr len -- )
+red handle-cmd
+  green parse-cmd
+  green case
+    green help  green do-help
+    green ls    green do-ls
+    green cat   green do-cat
+    green gcc   green do-gcc
+    green clang green do-gcc
+    green ./a.out green do-run
+  green endcase
+  ;
+
+cyan c-live arms neon chrome on termux-pane
+red c-live
+  white 1
+  green glow!
+  green led-on
+  green agent-c-context
+  ;
+
+cyan compile-live boosts cyan after successful gcc
+red compile-live
+  white 1
+  green glow!
+  green led-boost
+  green agent-compile-ok
+  ;
+
+cyan do-gcc · educational syscall trace
+red do-gcc
+  green c-live
+  green sys-clone
+  green sys-execve
+  green sys-openat
+  green sys-read
+  green sys-as
+  green sys-ld
+  green compile-live
+  ;
+
+cyan looks-like-c? ( addr len -- flag )
+red looks-like-c?
+  green s" #include" green search
+  green s" int main" green search
+  green or
+  green s" printf" green search
+  green or
+  ;
+
+yellow termux-pane
+
+\ ========== BLOCK 04 · agent ==========
+\ ColorForth — Grok Bot syscall agent pane
+
+cyan agent pane · badge · log · ask
+red agent-pane
+  green agent-chrome
+  green agent-badge
+  green agent-log
+  green agent-ask
+  ;
+
+cyan post a syscall line to the agent log
+red agent-syscall
+  green log-sys
+  green scroll-log
+  ;
+
+cyan bot prose reply
+red agent-say
+  green log-bot
+  green scroll-log
+  ;
+
+cyan user question
+red agent-ask
+  green log-user
+  green reply-pick
+  green agent-say
+  ;
+
+cyan notify C context from editor / termux
+red agent-c-context
+  green s" C context active" green agent-syscall
+  ;
+
+red agent-compile-ok
+  green s" Compile path clean. Run ./a.out" green agent-say
+  ;
+
+yellow agent-pane
+
+\ ========== BLOCK 05 · screen-termux-agent / demo ==========
+\ ColorForth demo screen — Termux | Agent split (like the HTML UI)
+
+cyan screen layout: left termux · right agent
+red screen-termux-agent
+  green sheet-termux
+  green termux-split
+  green termux-pane
+  green agent-pane
+  green mount-termux
+  ;
+
+cyan mount wires key-enter · key-type · agent-ask
+red mount-termux
+  green key-enter-bind
+  green key-type-bind
+  green agent-send-bind
+  green banner-help
+  green agent-online
+  ;
+
+cyan boot the demo: open panel then mount
+red demo
+  green s" Termux · Syscall Agent" green open-panel
+  green screen-termux-agent
+  ;
+
+yellow demo
+
+\ ========== BLOCK 00 · boot / workplace ==========
+\ ColorForth Visual Workplace — boot block (educational)
+\ Load order mirrors the HTML front end composition.
+
+cyan include vocabulary blocks
+yellow include desktop.cf
+yellow include workbench.cf
+yellow include termux.cf
+yellow include agent.cf
+yellow include screen-termux-agent.cf
+
+cyan boot: draw shell then run demo screen
+red workplace
+  green shell
+  green menubar
+  green dock
+  green workbench-window
+  green demo
+  ;
+
+yellow workplace

@@ -1,0 +1,20 @@
+\ ColorForth Visual Workplace — boot block (educational)
+\ Load order mirrors the HTML front end composition.
+
+cyan include vocabulary blocks
+yellow include desktop.cf
+yellow include workbench.cf
+yellow include termux.cf
+yellow include agent.cf
+yellow include screen-termux-agent.cf
+
+cyan boot: draw shell then run demo screen
+red workplace
+  green shell
+  green menubar
+  green dock
+  green workbench-window
+  green demo
+  ;
+
+yellow workplace

@@ -1,0 +1,77 @@
+\ ColorForth — Termux pane · key events · c-live glow
+
+cyan termux pane chrome · led · body · prompt
+red termux-pane
+  green termux-chrome
+  green termux-led
+  green termux-body
+  green termux-prompt
+  green termux-input
+  ;
+
+cyan key event words
+red key-enter
+  green input@
+  green handle-cmd
+  green input-clear
+  ;
+
+red key-type
+  green input@
+  green looks-like-c?
+  green if
+    green c-live
+  green then
+  ;
+
+cyan command dispatch ( addr len -- )
+red handle-cmd
+  green parse-cmd
+  green case
+    green help  green do-help
+    green ls    green do-ls
+    green cat   green do-cat
+    green gcc   green do-gcc
+    green clang green do-gcc
+    green ./a.out green do-run
+  green endcase
+  ;
+
+cyan c-live arms neon chrome on termux-pane
+red c-live
+  white 1
+  green glow!
+  green led-on
+  green agent-c-context
+  ;
+
+cyan compile-live boosts cyan after successful gcc
+red compile-live
+  white 1
+  green glow!
+  green led-boost
+  green agent-compile-ok
+  ;
+
+cyan do-gcc · educational syscall trace
+red do-gcc
+  green c-live
+  green sys-clone
+  green sys-execve
+  green sys-openat
+  green sys-read
+  green sys-as
+  green sys-ld
+  green compile-live
+  ;
+
+cyan looks-like-c? ( addr len -- flag )
+red looks-like-c?
+  green s" #include" green search
+  green s" int main" green search
+  green or
+  green s" printf" green search
+  green or
+  ;
+
+yellow termux-pane

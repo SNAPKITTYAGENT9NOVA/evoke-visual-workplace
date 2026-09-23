@@ -1,0 +1,58 @@
+\ ColorForth Visual Workplace — desktop shell (raw word stream)
+\ Colors assigned in desktop.cf.html / viewer: red=define green=compile
+\ yellow=execute cyan=comment white=literal magenta=macro
+
+cyan desktop shell · menubar · dock
+red shell
+  green wallpaper
+  green menubar
+  green dock
+  green stage
+  ;
+
+cyan menubar left · appname · clock
+red menubar
+  green apple-btn
+  green appname
+  green menu-file
+  green menu-edit
+  green menu-view
+  green menu-build
+  green menu-window
+  green menu-help
+  green status-wifi
+  green battery
+  green clock
+  ;
+
+cyan dock icons · workbench · termux · docs
+red dock
+  green dock-finder
+  green dock-workbench
+  green dock-termux
+  green dock-docs
+  green dock-settings
+  ;
+
+cyan show / hide workbench on stage
+red show-workbench
+  green stage-show
+  green dock-mark
+  ;
+
+red hide-workbench
+  green stage-hide
+  green dock-clear
+  ;
+
+cyan open a sheet panel by name
+red open-panel
+  white 0
+  green sheet-title!
+  green sheet-body!
+  green sheet-open
+  ;
+
+yellow shell
+yellow menubar
+yellow dock

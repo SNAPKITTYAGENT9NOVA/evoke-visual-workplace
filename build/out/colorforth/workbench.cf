@@ -1,0 +1,55 @@
+\ ColorForth — workbench window · navigator · editor
+
+cyan workbench chrome · traffic lights · title
+red workbench-window
+  green titlebar
+  green traffic-r
+  green traffic-y
+  green traffic-g
+  green window-title
+  green toolbar
+  green workspace
+  ;
+
+cyan three-column workspace
+red workspace
+  green navigator
+  green editor
+  green inspector
+  ;
+
+cyan file tree · project groups
+red navigator
+  green nav-search
+  green tree-group
+  green file-row
+  green open-file
+  ;
+
+cyan editor tabs · code buffer · console
+red editor
+  green tabs
+  green breadcrumb
+  green code-buffer
+  green console
+  ;
+
+cyan when path ends in .c arm glow
+red open-file
+  green path-type
+  green editor-load
+  green c-check
+  green c-live?
+  ;
+
+cyan c-check ( path -- flag )
+red c-check
+  green .c-suffix?
+  green looks-like-c?
+  green or
+  ;
+
+yellow workbench-window
+yellow workspace
+yellow navigator
+yellow editor

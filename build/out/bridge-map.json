@@ -1,0 +1,154 @@
+{
+  "description": "ColorForth words ↔ Dylan methods ↔ Evoke BEAM modules (Visual Workplace)",
+  "offline": true,
+  "dylan_frame": {
+    "magic": "DYLN",
+    "crc": "CRC32-IEEE over body",
+    "opcodes": {
+      "0x01": "open-file",
+      "0x02": "compile-c",
+      "0x03": "glow-on",
+      "0x04": "glow-off",
+      "0x05": "key-enter",
+      "0x06": "agent-ask",
+      "0x07": "syscall-trace"
+    }
+  },
+  "mappings": [
+    {
+      "cf": "shell",
+      "dylan": "<visual-workplace>",
+      "beam": "Evoke.Application"
+    },
+    {
+      "cf": "menubar",
+      "dylan": "<menubar>",
+      "beam": null
+    },
+    {
+      "cf": "dock",
+      "dylan": "<dock>",
+      "beam": null
+    },
+    {
+      "cf": "workbench-window",
+      "dylan": "<workbench-window>",
+      "beam": null
+    },
+    {
+      "cf": "workspace",
+      "dylan": "workbench-navigator / workbench-editor",
+      "beam": null
+    },
+    {
+      "cf": "navigator",
+      "dylan": "<navigator-pane>",
+      "beam": null
+    },
+    {
+      "cf": "editor",
+      "dylan": "<editor-pane>",
+      "beam": null
+    },
+    {
+      "cf": "open-file",
+      "dylan": "open-file!",
+      "beam": "Evoke.WorkplaceBridge.fan_event(:open_file)"
+    },
+    {
+      "cf": "c-check",
+      "dylan": "looks-like-c?",
+      "beam": null
+    },
+    {
+      "cf": "termux-pane",
+      "dylan": "<termux-pane>",
+      "beam": null
+    },
+    {
+      "cf": "key-enter",
+      "dylan": "handle-key-enter!",
+      "beam": "Evoke.WorkplaceBridge.fan_event(:key_enter)"
+    },
+    {
+      "cf": "key-type",
+      "dylan": "looks-like-c? / set-glow!",
+      "beam": null
+    },
+    {
+      "cf": "handle-cmd",
+      "dylan": "handle-key-enter!",
+      "beam": null
+    },
+    {
+      "cf": "c-live",
+      "dylan": "set-glow!(…, #t)",
+      "beam": "Evoke.WorkplaceBridge.fan_event(:glow_on)"
+    },
+    {
+      "cf": "compile-live",
+      "dylan": "set-glow!(…, #t, compile-boost?: #t)",
+      "beam": "Evoke.WorkplaceBridge.fan_event(:glow_on)"
+    },
+    {
+      "cf": "do-gcc",
+      "dylan": "compile-c!",
+      "beam": "Evoke.WorkplaceBridge.fan_event(:compile_c)"
+    },
+    {
+      "cf": "looks-like-c?",
+      "dylan": "looks-like-c?",
+      "beam": null
+    },
+    {
+      "cf": "agent-pane",
+      "dylan": "<syscall-agent>",
+      "beam": "Evoke.AgentNode"
+    },
+    {
+      "cf": "agent-syscall",
+      "dylan": "agent-post! / on-dylan-event(#\"syscall-trace\")",
+      "beam": "Evoke.WorkplaceBridge.fan_event(:syscall_trace)"
+    },
+    {
+      "cf": "agent-say",
+      "dylan": "agent-post!",
+      "beam": "Evoke.AgentNode.emit_ui_action/3"
+    },
+    {
+      "cf": "agent-ask",
+      "dylan": "agent-ask!",
+      "beam": "Evoke.WorkplaceBridge.fan_event(:agent_ask)"
+    },
+    {
+      "cf": "screen-termux-agent",
+      "dylan": "mount-termux-agent-screen!",
+      "beam": null
+    },
+    {
+      "cf": "mount-termux",
+      "dylan": "mount-termux-agent-screen!",
+      "beam": null
+    },
+    {
+      "cf": "demo",
+      "dylan": "boot-workplace / start-visual-workplace",
+      "beam": "Evoke.WorkplaceBridge"
+    },
+    {
+      "cf": "workplace",
+      "dylan": "main / evoke-visual-workplace",
+      "beam": "Evoke.Application"
+    },
+    {
+      "cf": "dylan-frame",
+      "dylan": "encode-frame / decode-frame / apply-mesh-frame!",
+      "beam": "Evoke.DylanProtocol + Evoke.WorkplaceBridge"
+    },
+    {
+      "cf": "mesh-fan",
+      "dylan": "evoke-mesh-event!",
+      "beam": "Evoke.AgentSupervisor / Evoke.AgentNode"
+    }
+  ]
+}
